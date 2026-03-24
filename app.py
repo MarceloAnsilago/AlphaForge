@@ -6,8 +6,10 @@ import pandas as pd
 import streamlit as st
 
 from config import (
+    DISTANCE_CALCULATION_OPTIONS,
     MARKET_PERIOD_OPTIONS,
     OPERATIONAL_TYPE_OPTIONS,
+    ORDER_EXECUTION_OPTIONS,
     PRIMARY_TIMEFRAME_OPTIONS,
     PROCESSING_MODE_OPTIONS,
     TARGET_MARKET_OPTIONS,
@@ -261,7 +263,7 @@ with top_col_4:
     with st.expander("Gestao de risco", expanded=True):
         risk_management = render_risco()
 
-config_col_1, _, _, _ = st.columns(4)
+config_col_1, config_col_2, _, _ = st.columns(4)
 
 with config_col_1:
     with st.expander("Configuracao inicial", expanded=True):
@@ -285,6 +287,21 @@ with config_col_1:
             format="%.1f",
         )
 
+with config_col_2:
+    with st.expander("Tipo de ordens", expanded=True):
+        distance_calculation_type = st.selectbox(
+            "Tipo de calculo das distancias",
+            options=DISTANCE_CALCULATION_OPTIONS,
+        )
+        entry_order_type = st.selectbox(
+            "Ordem de entrada",
+            options=ORDER_EXECUTION_OPTIONS,
+        )
+        exit_order_type = st.selectbox(
+            "Ordens de saida",
+            options=ORDER_EXECUTION_OPTIONS,
+        )
+
 entry_rules = []
 exit_rules = []
 
@@ -302,6 +319,9 @@ if save_clicked or show_clicked:
         "primary_timeframe": primary_timeframe,
         "initial_volume": float(initial_volume),
         "max_spread": float(max_spread),
+        "distance_calculation_type": distance_calculation_type,
+        "entry_order_type": entry_order_type,
+        "exit_order_type": exit_order_type,
     }
     payload = _build_strategy_payload(
         strategy_name=strategy_name,

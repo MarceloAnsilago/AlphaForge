@@ -50,6 +50,10 @@ PROCESSING_MODE_OPTIONS = ["Cada tick", "Cada segundo"]
 
 MAX_RULES = 3
 
+DISTANCE_CALCULATION_OPTIONS = ["Pontos", "Percentual"]
+
+ORDER_EXECUTION_OPTIONS = ["A mercado", "Pendente"]
+
 STOP_TYPES = ["points"]
 
 TAKE_TYPES = ["RR", "fixed"]
