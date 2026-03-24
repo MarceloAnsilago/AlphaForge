@@ -10,9 +10,13 @@ from config import (
     MARKET_PERIOD_OPTIONS,
     OPERATIONAL_TYPE_OPTIONS,
     ORDER_EXECUTION_OPTIONS,
+    PENDING_EXPIRATION_OPTIONS,
+    PENDING_CANDLE_REFERENCE_OPTIONS,
+    PENDING_PRICE_REFERENCE_OPTIONS,
     PRIMARY_TIMEFRAME_OPTIONS,
     PROCESSING_MODE_OPTIONS,
     TARGET_MARKET_OPTIONS,
+    TIMEFRAMES_SELECT,
     TIMEFRAME_OPTIONS,
     YES_NO_OPTIONS,
 )
@@ -115,6 +119,18 @@ def _derive_direction(operate_buy: str, operate_sell: str) -> str:
     if sell_enabled:
         return "SELL"
     return "NONE"
+
+
+def _flatten_timeframe_select() -> tuple[list[str], dict[str, str]]:
+    options: list[str] = []
+    labels: dict[str, str] = {}
+
+    for group_name, group_options in TIMEFRAMES_SELECT.items():
+        for option_value, option_label in group_options.items():
+            options.append(option_value)
+            labels[option_value] = f"{group_name} | {option_label}"
+
+    return options, labels
 
 
 _init_session_state()
@@ -263,7 +279,8 @@ with top_col_4:
     with st.expander("Gestao de risco", expanded=True):
         risk_management = render_risco()
 
-config_col_1, config_col_2, _, _ = st.columns(4)
+config_col_1, config_col_2, config_col_3 = st.columns([1, 2, 1])
+filter_timeframe_options, filter_timeframe_labels = _flatten_timeframe_select()
 
 with config_col_1:
     with st.expander("Configuracao inicial", expanded=True):
@@ -292,14 +309,125 @@ with config_col_2:
         distance_calculation_type = st.selectbox(
             "Tipo de calculo das distancias",
             options=DISTANCE_CALCULATION_OPTIONS,
+            key="distance_calculation_type",
         )
-        entry_order_type = st.selectbox(
-            "Ordem de entrada",
-            options=ORDER_EXECUTION_OPTIONS,
+        distance_step = 1.0 if distance_calculation_type == "Pontos" else 0.1
+        entry_order_col, exit_order_col = st.columns(2)
+
+        with entry_order_col:
+            entry_order_type = st.selectbox(
+                "Ordem de entrada",
+                options=ORDER_EXECUTION_OPTIONS,
+                key="entry_order_type",
+            )
+            entry_pending_price_reference = None
+            entry_pending_candle_reference = None
+            entry_pending_order_distance = None
+            entry_pending_expiration = None
+            if entry_order_type == "Pendente":
+                entry_pending_price_reference = st.selectbox(
+                    "Referencia de preco",
+                    options=PENDING_PRICE_REFERENCE_OPTIONS,
+                    key="entry_pending_price_reference",
+                )
+                entry_pending_candle_reference = st.selectbox(
+                    "Candle",
+                    options=PENDING_CANDLE_REFERENCE_OPTIONS,
+                    key="entry_pending_candle_reference",
+                )
+                entry_pending_order_distance = st.number_input(
+                    f"Distancia da ordem ({distance_calculation_type})",
+                    min_value=0.0,
+                    value=0.0,
+                    step=distance_step,
+                    key="entry_pending_order_distance",
+                )
+                entry_pending_expiration = st.selectbox(
+                    "Expiracao da ordem em candles futuros",
+                    options=PENDING_EXPIRATION_OPTIONS,
+                    format_func=lambda value: value if value == "Nao expirar" else f"{value} candle(s)",
+                    key="entry_pending_expiration",
+                )
+
+        with exit_order_col:
+            exit_order_type = st.selectbox(
+                "Ordem de saida",
+                options=ORDER_EXECUTION_OPTIONS,
+                key="exit_order_type",
+            )
+            exit_pending_price_reference = None
+            exit_pending_candle_reference = None
+            exit_pending_order_distance = None
+            exit_pending_expiration = None
+            if exit_order_type == "Pendente":
+                exit_pending_price_reference = st.selectbox(
+                    "Referencia de preco",
+                    options=PENDING_PRICE_REFERENCE_OPTIONS,
+                    key="exit_pending_price_reference",
+                )
+                exit_pending_candle_reference = st.selectbox(
+                    "Candle",
+                    options=PENDING_CANDLE_REFERENCE_OPTIONS,
+                    key="exit_pending_candle_reference",
+                )
+                exit_pending_order_distance = st.number_input(
+                    f"Distancia da ordem ({distance_calculation_type})",
+                    min_value=0.0,
+                    value=0.0,
+                    step=distance_step,
+                    key="exit_pending_order_distance",
+                )
+                exit_pending_expiration = st.selectbox(
+                    "Expiracao da ordem em candles futuros",
+                    options=PENDING_EXPIRATION_OPTIONS,
+                    format_func=lambda value: value if value == "Nao expirar" else f"{value} candle(s)",
+                    key="exit_pending_expiration",
+                )
+
+with config_col_3:
+    with st.expander("Filtro de vela", expanded=True):
+        candle_filter_measure_type = st.selectbox(
+            "Medir em",
+            options=DISTANCE_CALCULATION_OPTIONS,
+            key="candle_filter_measure_type",
         )
-        exit_order_type = st.selectbox(
-            "Ordens de saida",
-            options=ORDER_EXECUTION_OPTIONS,
+        candle_filter_timeframe = st.selectbox(
+            "Tempo grafico",
+            options=filter_timeframe_options,
+            format_func=lambda value: filter_timeframe_labels[value],
+            key="candle_filter_timeframe",
+        )
+        candle_filter_measure_label = (
+            "Em pontos" if candle_filter_measure_type == "Pontos" else "Em percentual"
+        )
+        candle_filter_measure_step = 1.0 if candle_filter_measure_type == "Pontos" else 0.1
+        candle_filter_min_size = st.number_input(
+            f"Tamanho minimo da vela ({candle_filter_measure_label})",
+            min_value=0.0,
+            value=0.0,
+            step=candle_filter_measure_step,
+            key="candle_filter_min_size",
+        )
+        candle_filter_max_size = st.number_input(
+            f"Tamanho maximo da vela ({candle_filter_measure_label})",
+            min_value=0.0,
+            value=0.0,
+            step=candle_filter_measure_step,
+            key="candle_filter_max_size",
+        )
+        candle_filter_min_body = st.number_input(
+            f"Minimo do corpo da vela ({candle_filter_measure_label})",
+            min_value=0.0,
+            value=0.0,
+            step=candle_filter_measure_step,
+            key="candle_filter_min_body",
+        )
+        candle_filter_max_body = st.number_input(
+            f"Maximo do corpo da vela ({candle_filter_measure_label})",
+            min_value=0.0,
+            value=0.0,
+            step=candle_filter_measure_step,
+            key="candle_filter_max_body",
         )
 
 entry_rules = []
@@ -322,6 +450,20 @@ if save_clicked or show_clicked:
         "distance_calculation_type": distance_calculation_type,
         "entry_order_type": entry_order_type,
         "exit_order_type": exit_order_type,
+        "entry_pending_price_reference": entry_pending_price_reference,
+        "entry_pending_candle_reference": entry_pending_candle_reference,
+        "entry_pending_order_distance": entry_pending_order_distance,
+        "entry_pending_expiration": entry_pending_expiration,
+        "exit_pending_price_reference": exit_pending_price_reference,
+        "exit_pending_candle_reference": exit_pending_candle_reference,
+        "exit_pending_order_distance": exit_pending_order_distance,
+        "exit_pending_expiration": exit_pending_expiration,
+        "candle_filter_timeframe": candle_filter_timeframe,
+        "candle_filter_measure_type": candle_filter_measure_type,
+        "candle_filter_min_size": candle_filter_min_size,
+        "candle_filter_max_size": candle_filter_max_size,
+        "candle_filter_min_body": candle_filter_min_body,
+        "candle_filter_max_body": candle_filter_max_body,
     }
     payload = _build_strategy_payload(
         strategy_name=strategy_name,
