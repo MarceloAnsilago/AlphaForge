@@ -1,0 +1,13 @@
+python -m venv venv
+
+Windows PowerShell:
+.\venv\Scripts\Activate.ps1
+
+Windows CMD:
+venv\Scripts\activate.bat
+
+Linux/Mac:
+source venv/bin/activate
+
+pip install -r requirements.txt
+streamlit run app.py
