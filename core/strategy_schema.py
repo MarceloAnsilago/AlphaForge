@@ -35,6 +35,7 @@ class RiskManagement:
 class StrategyStructure:
     name: str
     direction: str
+    settings: dict[str, Any]
     market: dict[str, Any]
     entry_rules: list[Rule]
     exit_rules: list[Rule]
@@ -64,6 +65,7 @@ def _build_rule(payload: dict[str, Any]) -> Rule:
 def build_strategy_structure(
     name: str,
     direction: str,
+    settings: dict[str, Any],
     market: dict[str, Any],
     entry_rules: list[dict[str, Any]],
     exit_rules: list[dict[str, Any]],
@@ -72,6 +74,7 @@ def build_strategy_structure(
     strategy = StrategyStructure(
         name=name,
         direction=direction,
+        settings=settings,
         market=market,
         entry_rules=[_build_rule(rule) for rule in entry_rules],
         exit_rules=[_build_rule(rule) for rule in exit_rules],

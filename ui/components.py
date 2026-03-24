@@ -27,39 +27,35 @@ RIGHT_OPERAND_TYPES = {
 
 def render_regra(prefix: str) -> dict:
     with st.expander(humanize_rule_name(prefix), expanded=False):
-        col_left, col_right = st.columns(2)
+        left_source = st.selectbox(
+            "Indicador ou preco",
+            options=RULE_SOURCE_OPTIONS,
+            format_func=format_source_option,
+            key=f"{prefix}_left_source",
+        )
+        left_parsed = parse_source_option(left_source)
 
-        with col_left:
-            left_source = st.selectbox(
-                "Indicador ou preco",
-                options=RULE_SOURCE_OPTIONS,
-                format_func=format_source_option,
-                key=f"{prefix}_left_source",
-            )
-            left_parsed = parse_source_option(left_source)
-            left_period = None
-            if left_parsed["kind"] == "indicator":
-                left_period = st.number_input(
-                    "Periodo",
-                    min_value=1,
-                    value=14,
-                    step=1,
-                    key=f"{prefix}_left_period",
-                )
-
-        with col_right:
-            operator = st.selectbox(
-                "Operador",
-                options=list(OPERATORS.keys()),
-                format_func=lambda value: OPERATORS[value],
-                key=f"{prefix}_operator",
-            )
-            candle_offset = st.selectbox(
-                "Candle offset",
-                options=[0, 1, 2],
-                key=f"{prefix}_offset",
+        left_period = None
+        if left_parsed["kind"] == "indicator":
+            left_period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=14,
+                step=1,
+                key=f"{prefix}_left_period",
             )
 
+        operator = st.selectbox(
+            "Operador",
+            options=list(OPERATORS.keys()),
+            format_func=lambda value: OPERATORS[value],
+            key=f"{prefix}_operator",
+        )
+        candle_offset = st.selectbox(
+            "Candle offset",
+            options=[0, 1, 2],
+            key=f"{prefix}_offset",
+        )
         comparator_type = st.selectbox(
             "Comparar com",
             options=list(RIGHT_OPERAND_TYPES.keys()),
@@ -118,46 +114,41 @@ def render_regra(prefix: str) -> dict:
 
 
 def render_risco() -> dict:
-    with st.expander("Configuracao de risco", expanded=True):
-        stop_col, take_col = st.columns(2)
+    stop_type = st.selectbox(
+        "Tipo de stop",
+        options=STOP_TYPES,
+        format_func=lambda value: "Pontos" if value == "points" else value,
+        key="risk_stop_type",
+    )
+    stop_value = st.number_input(
+        "Valor do stop",
+        min_value=0.0,
+        value=100.0,
+        step=1.0,
+        key="risk_stop_value",
+    )
 
-        with stop_col:
-            stop_type = st.selectbox(
-                "Tipo de stop",
-                options=STOP_TYPES,
-                format_func=lambda value: "Pontos" if value == "points" else value,
-                key="risk_stop_type",
-            )
-            stop_value = st.number_input(
-                "Valor do stop",
-                min_value=0.0,
-                value=100.0,
-                step=1.0,
-                key="risk_stop_value",
-            )
+    take_type = st.selectbox(
+        "Tipo de take",
+        options=TAKE_TYPES,
+        format_func=lambda value: "Fixo" if value == "fixed" else value,
+        key="risk_take_type",
+    )
+    take_value = st.number_input(
+        "Valor do take",
+        min_value=0.0,
+        value=2.0,
+        step=0.1,
+        key="risk_take_value",
+    )
 
-        with take_col:
-            take_type = st.selectbox(
-                "Tipo de take",
-                options=TAKE_TYPES,
-                format_func=lambda value: "Fixo" if value == "fixed" else value,
-                key="risk_take_type",
-            )
-            take_value = st.number_input(
-                "Valor do take",
-                min_value=0.0,
-                value=2.0,
-                step=0.1,
-                key="risk_take_value",
-            )
-
-        return {
-            "stop": {
-                "type": stop_type,
-                "value": float(stop_value),
-            },
-            "take": {
-                "type": take_type,
-                "value": float(take_value),
-            },
-        }
+    return {
+        "stop": {
+            "type": stop_type,
+            "value": float(stop_value),
+        },
+        "take": {
+            "type": take_type,
+            "value": float(take_value),
+        },
+    }

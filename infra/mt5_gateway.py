@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Any
 
 import pandas as pd
@@ -54,6 +54,35 @@ def _timeframe_constant(timeframe: str) -> Any:
     return getattr(mt5, constant_name, None)
 
 
+def _ensure_symbol_selected(symbol: str) -> bool:
+    symbol_info = mt5.symbol_info(symbol)
+    if symbol_info is None:
+        error = mt5.last_error()
+        _set_error(f"Simbolo invalido ou indisponivel no terminal. Detalhes: {error}")
+        return False
+
+    if symbol_info.visible:
+        return True
+
+    if not mt5.symbol_select(symbol, True):
+        error = mt5.last_error()
+        _set_error(
+            "Nao foi possivel habilitar o simbolo no Market Watch do MetaTrader 5. "
+            f"Detalhes: {error}"
+        )
+        return False
+
+    return True
+
+
+def _normalize_utc_timestamp(value: datetime) -> int:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    else:
+        value = value.astimezone(timezone.utc)
+    return int(value.timestamp())
+
+
 def initialize_mt5() -> bool:
     if not _mt5_available():
         return False
@@ -97,9 +126,9 @@ def build_market_period_range(
     now = datetime.now(timezone.utc)
 
     if period_mode == "LAST_MONTH":
-        return now - pd.DateOffset(months=1), now
+        return now - timedelta(days=30), now
     if period_mode == "LAST_YEAR":
-        return now - pd.DateOffset(years=1), now
+        return now - timedelta(days=365), now
     if period_mode == "FULL_HISTORY":
         return datetime(2000, 1, 1, tzinfo=timezone.utc), now
     if period_mode == "CUSTOM":
@@ -136,13 +165,21 @@ def get_candles_by_range(
     if timeframe_constant is None:
         return pd.DataFrame()
 
+    if not _ensure_symbol_selected(symbol):
+        return pd.DataFrame()
+
     if start is not None and start.tzinfo is None:
         start = start.replace(tzinfo=timezone.utc)
     if end is not None and end.tzinfo is None:
         end = end.replace(tzinfo=timezone.utc)
 
     if start is not None and end is not None:
-        rates = mt5.copy_rates_range(symbol, timeframe_constant, start, end)
+        rates = mt5.copy_rates_range(
+            symbol,
+            timeframe_constant,
+            _normalize_utc_timestamp(start),
+            _normalize_utc_timestamp(end),
+        )
     else:
         effective_bars = bars or 500
         rates = mt5.copy_rates_from_pos(symbol, timeframe_constant, 0, effective_bars)
