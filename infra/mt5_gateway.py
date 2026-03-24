@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date, datetime, time, timezone
 from typing import Any
 
 import pandas as pd
@@ -35,7 +36,7 @@ def get_last_error() -> str:
 def _mt5_available() -> bool:
     if mt5 is None:
         _set_error(
-            "Biblioteca MetaTrader5 não encontrada. Instale as dependências antes de abrir o app."
+            "Biblioteca MetaTrader5 nao encontrada. Instale as dependencias antes de abrir o app."
         )
         return False
     return True
@@ -47,7 +48,7 @@ def _timeframe_constant(timeframe: str) -> Any:
 
     constant_name = _TIMEFRAME_MAP.get(timeframe)
     if not constant_name:
-        _set_error(f"Timeframe inválido: {timeframe}")
+        _set_error(f"Timeframe invalido: {timeframe}")
         return None
 
     return getattr(mt5, constant_name, None)
@@ -61,8 +62,8 @@ def initialize_mt5() -> bool:
     if not initialized:
         error = mt5.last_error()
         _set_error(
-            "Não foi possível conectar ao MetaTrader 5. "
-            "Verifique se o terminal está aberto e logado. "
+            "Nao foi possivel conectar ao MetaTrader 5. "
+            "Verifique se o terminal esta aberto e logado. "
             f"Detalhes: {error}"
         )
         return False
@@ -79,7 +80,7 @@ def get_symbols() -> list[str]:
     if symbols is None:
         error = mt5.last_error()
         _set_error(
-            "Não foi possível listar os símbolos do MetaTrader 5. "
+            "Nao foi possivel listar os simbolos do MetaTrader 5. "
             f"Detalhes: {error}"
         )
         return []
@@ -88,7 +89,46 @@ def get_symbols() -> list[str]:
     return sorted(symbol.name for symbol in symbols)
 
 
+def build_market_period_range(
+    period_mode: str,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> tuple[datetime, datetime] | None:
+    now = datetime.now(timezone.utc)
+
+    if period_mode == "LAST_MONTH":
+        return now - pd.DateOffset(months=1), now
+    if period_mode == "LAST_YEAR":
+        return now - pd.DateOffset(years=1), now
+    if period_mode == "FULL_HISTORY":
+        return datetime(2000, 1, 1, tzinfo=timezone.utc), now
+    if period_mode == "CUSTOM":
+        if start_date is None or end_date is None:
+            _set_error("Informe as datas inicial e final para o periodo personalizado.")
+            return None
+
+        start = datetime.combine(start_date, time.min, tzinfo=timezone.utc)
+        end = datetime.combine(end_date, time.max, tzinfo=timezone.utc)
+        if start > end:
+            _set_error("A data inicial nao pode ser maior que a data final.")
+            return None
+        return start, end
+
+    _set_error(f"Modo de periodo invalido: {period_mode}")
+    return None
+
+
 def get_candles(symbol: str, timeframe: str, n: int = 500) -> pd.DataFrame:
+    return get_candles_by_range(symbol, timeframe, bars=n)
+
+
+def get_candles_by_range(
+    symbol: str,
+    timeframe: str,
+    start: datetime | None = None,
+    end: datetime | None = None,
+    bars: int | None = None,
+) -> pd.DataFrame:
     if not _mt5_available():
         return pd.DataFrame()
 
@@ -96,22 +136,32 @@ def get_candles(symbol: str, timeframe: str, n: int = 500) -> pd.DataFrame:
     if timeframe_constant is None:
         return pd.DataFrame()
 
-    rates = mt5.copy_rates_from_pos(symbol, timeframe_constant, 0, n)
+    if start is not None and start.tzinfo is None:
+        start = start.replace(tzinfo=timezone.utc)
+    if end is not None and end.tzinfo is None:
+        end = end.replace(tzinfo=timezone.utc)
+
+    if start is not None and end is not None:
+        rates = mt5.copy_rates_range(symbol, timeframe_constant, start, end)
+    else:
+        effective_bars = bars or 500
+        rates = mt5.copy_rates_from_pos(symbol, timeframe_constant, 0, effective_bars)
+
     if rates is None:
         error = mt5.last_error()
         _set_error(
-            "Não foi possível carregar candles. "
-            "Verifique a conexão com o MT5 e se o ativo está disponível. "
+            "Nao foi possivel carregar candles. "
+            "Verifique a conexao com o MT5 e se o ativo esta disponivel. "
             f"Detalhes: {error}"
         )
         return pd.DataFrame()
 
     dataframe = pd.DataFrame(rates)
     if dataframe.empty:
-        _set_error("Nenhum candle foi retornado pelo MetaTrader 5 para os parâmetros informados.")
+        _set_error("Nenhum candle foi retornado pelo MetaTrader 5 para os parametros informados.")
         return dataframe
 
-    dataframe["time"] = pd.to_datetime(dataframe["time"], unit="s")
+    dataframe["time"] = pd.to_datetime(dataframe["time"], unit="s", utc=True)
     columns = ["time", "open", "high", "low", "close", "tick_volume"]
     _set_error("")
     return dataframe.loc[:, columns]

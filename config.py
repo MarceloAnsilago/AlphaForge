@@ -1,5 +1,12 @@
 TIMEFRAME_OPTIONS = ["M1", "M5", "M15", "M30", "H1", "H4", "D1"]
 
+MARKET_PERIOD_OPTIONS = [
+    "LAST_MONTH",
+    "LAST_YEAR",
+    "FULL_HISTORY",
+    "CUSTOM",
+]
+
 INITIAL_INDICATORS = ["SMA", "EMA", "RSI", "MACD", "BBANDS", "CCI"]
 
 OPERATORS = {
