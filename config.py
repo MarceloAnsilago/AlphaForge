@@ -1,5 +1,3 @@
-TIMEFRAME_OPTIONS = ["M1", "M5", "M15", "M30", "H1", "H4", "D1"]
-
 PRIMARY_TIMEFRAME_OPTIONS = [
     "CURRENT",
     "M1",
@@ -23,38 +21,6 @@ PRIMARY_TIMEFRAME_OPTIONS = [
     "W1",
     "MN1",
 ]
-
-TIMEFRAMES_SELECT = {
-    "Corrente": {
-        "CURRENT": "Corrente",
-    },
-    "Minutos": {
-        "M1": "1 Minuto",
-        "M2": "2 Minutos",
-        "M3": "3 Minutos",
-        "M4": "4 Minutos",
-        "M5": "5 Minutos",
-        "M6": "6 Minutos",
-        "M10": "10 Minutos",
-        "M12": "12 Minutos",
-        "M15": "15 Minutos",
-        "M30": "30 Minutos",
-    },
-    "Horas": {
-        "H1": "1 Hora",
-        "H2": "2 Horas",
-        "H3": "3 Horas",
-        "H4": "4 Horas",
-        "H6": "6 Horas",
-        "H8": "8 Horas",
-        "H12": "12 Horas",
-    },
-    "Periodos maiores": {
-        "D1": "1 Dia",
-        "W1": "1 Semana",
-        "MN1": "1 Mes",
-    },
-}
 
 MARKET_PERIOD_OPTIONS = [
     "LAST_MONTH",

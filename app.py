@@ -16,8 +16,6 @@ from config import (
     PRIMARY_TIMEFRAME_OPTIONS,
     PROCESSING_MODE_OPTIONS,
     TARGET_MARKET_OPTIONS,
-    TIMEFRAMES_SELECT,
-    TIMEFRAME_OPTIONS,
     YES_NO_OPTIONS,
 )
 from core.strategy_schema import build_strategy_structure
@@ -28,7 +26,12 @@ from infra.mt5_gateway import (
     get_symbols,
     initialize_mt5,
 )
-from ui.components import render_risco
+from ui.components import (
+    render_stop_loss,
+    render_stop_movel,
+    render_take_profit,
+    render_trailing_stop,
+)
 
 
 st.set_page_config(page_title="AlphaForge", layout="wide")
@@ -121,16 +124,54 @@ def _derive_direction(operate_buy: str, operate_sell: str) -> str:
     return "NONE"
 
 
-def _flatten_timeframe_select() -> tuple[list[str], dict[str, str]]:
-    options: list[str] = []
-    labels: dict[str, str] = {}
+def _format_timeframe_label(value: str) -> str:
+    return "Corrente" if value == "CURRENT" else value
 
-    for group_name, group_options in TIMEFRAMES_SELECT.items():
-        for option_value, option_label in group_options.items():
-            options.append(option_value)
-            labels[option_value] = f"{group_name} | {option_label}"
 
-    return options, labels
+def _resolve_market_timeframe(selected_timeframe: str) -> str | None:
+    if selected_timeframe != "CURRENT":
+        return selected_timeframe
+
+    primary_timeframe = st.session_state.get("primary_timeframe", "CURRENT")
+    if primary_timeframe == "CURRENT":
+        return None
+
+    return primary_timeframe
+
+
+def _render_hour_minute_input(
+    label: str,
+    key_prefix: str,
+    default_hour: int,
+    default_minute: int,
+) -> tuple[int, int]:
+    st.caption(label)
+    hour_col, colon_col, minute_col = st.columns([1, 0.2, 1])
+    hour_options = [f"{value:02d}" for value in range(25)]
+    minute_options = [f"{value:02d}" for value in range(60)]
+
+    with hour_col:
+        hour = st.selectbox(
+            f"{label} hora",
+            options=hour_options,
+            index=default_hour,
+            key=f"{key_prefix}_hour",
+            label_visibility="collapsed",
+        )
+
+    with colon_col:
+        st.markdown("<div style='text-align:center; padding-top: 0.35rem;'>:</div>", unsafe_allow_html=True)
+
+    with minute_col:
+        minute = st.selectbox(
+            f"{label} minuto",
+            options=minute_options,
+            index=default_minute,
+            key=f"{key_prefix}_minute",
+            label_visibility="collapsed",
+        )
+
+    return int(hour), int(minute)
 
 
 _init_session_state()
@@ -171,7 +212,12 @@ with top_col_2:
             options=available_symbols if available_symbols else ["Sem simbolos disponiveis"],
             disabled=not bool(available_symbols),
         )
-        selected_timeframe = st.selectbox("Timeframe", options=TIMEFRAME_OPTIONS)
+        selected_timeframe = st.selectbox(
+            "Tempo grafico",
+            options=PRIMARY_TIMEFRAME_OPTIONS,
+            format_func=_format_timeframe_label,
+            key="market_timeframe",
+        )
         period_mode = st.selectbox(
             "Periodo de cotacoes",
             options=MARKET_PERIOD_OPTIONS,
@@ -192,42 +238,50 @@ with top_col_2:
             )
 
         if load_clicked:
+            load_feedback = False
             if not st.session_state["mt5_connected"]:
                 st.error("Conecte ao MT5 antes de carregar os dados.")
             elif not available_symbols:
                 st.error("Nenhum simbolo disponivel para consulta.")
             else:
-                period_range = build_market_period_range(
-                    period_mode,
-                    start_date=custom_start_date,
-                    end_date=custom_end_date,
-                )
-                if period_range is None:
-                    st.error(get_last_error())
-                else:
-                    start, end = period_range
-                    candles = get_candles_by_range(
-                        selected_symbol,
-                        selected_timeframe,
-                        start=start,
-                        end=end,
+                effective_market_timeframe = _resolve_market_timeframe(selected_timeframe)
+                if effective_market_timeframe is None:
+                    st.error(
+                        "Selecione um tempo grafico principal diferente de Corrente para carregar os dados de mercado."
                     )
-                    st.session_state["market_data"] = candles
-                    st.session_state["market_query"] = {
-                        "period_mode": period_mode,
-                        "custom_start_date": custom_start_date.isoformat()
-                        if custom_start_date is not None
-                        else None,
-                        "custom_end_date": custom_end_date.isoformat()
-                        if custom_end_date is not None
-                        else None,
-                    }
-                    market_data = candles
-                    market_query = st.session_state["market_query"]
-
-                if market_data.empty:
-                    st.warning(get_last_error() or "Nenhum dado retornado.")
                 else:
+                    period_range = build_market_period_range(
+                        period_mode,
+                        start_date=custom_start_date,
+                        end_date=custom_end_date,
+                    )
+                    if period_range is None:
+                        st.error(get_last_error())
+                    else:
+                        start, end = period_range
+                        candles = get_candles_by_range(
+                            selected_symbol,
+                            effective_market_timeframe,
+                            start=start,
+                            end=end,
+                        )
+                        st.session_state["market_data"] = candles
+                        st.session_state["market_query"] = {
+                            "period_mode": period_mode,
+                            "custom_start_date": custom_start_date.isoformat()
+                            if custom_start_date is not None
+                            else None,
+                            "custom_end_date": custom_end_date.isoformat()
+                            if custom_end_date is not None
+                            else None,
+                        }
+                        market_data = candles
+                        market_query = st.session_state["market_query"]
+                        load_feedback = True
+
+                if load_feedback and market_data.empty:
+                    st.warning(get_last_error() or "Nenhum dado retornado.")
+                elif load_feedback:
                     st.success(f"{len(market_data)} candles carregados para {selected_symbol}.")
 
         if not market_data.empty:
@@ -276,18 +330,45 @@ with top_col_3:
             st.caption(f"Direcao derivada: {direction}")
 
 with top_col_4:
-    with st.expander("Gestao de risco", expanded=True):
-        risk_management = render_risco()
+    with st.expander("Horario", expanded=True):
+        close_by_schedule = st.selectbox(
+            "Deseja zerar por horario",
+            options=YES_NO_OPTIONS,
+            key="close_by_schedule",
+        )
+        close_operations_hour, close_operations_minute = 23, 0
+        if close_by_schedule == "Sim":
+            close_operations_hour, close_operations_minute = _render_hour_minute_input(
+                "Horario de zerar as operacoes",
+                "close_operations",
+                23,
+                0,
+            )
+        st.caption(
+            "Para operar independente de horario, basta deixar o horario inicial igual ao horario final."
+        )
+        operation_start_hour, operation_start_minute = _render_hour_minute_input(
+            "Horario inicial das operacoes",
+            "operation_start",
+            0,
+            0,
+        )
+        operation_end_hour, operation_end_minute = _render_hour_minute_input(
+            "Horario final das operacoes",
+            "operation_end",
+            22,
+            0,
+        )
 
 config_col_1, config_col_2, config_col_3 = st.columns([1, 2, 1])
-filter_timeframe_options, filter_timeframe_labels = _flatten_timeframe_select()
 
 with config_col_1:
     with st.expander("Configuracao inicial", expanded=True):
         primary_timeframe = st.selectbox(
             "Tempo grafico principal",
             options=PRIMARY_TIMEFRAME_OPTIONS,
-            format_func=lambda value: "Corrente" if value == "CURRENT" else value,
+            format_func=_format_timeframe_label,
+            key="primary_timeframe",
         )
         initial_volume = st.number_input(
             "Volume inicial",
@@ -393,8 +474,8 @@ with config_col_3:
         )
         candle_filter_timeframe = st.selectbox(
             "Tempo grafico",
-            options=filter_timeframe_options,
-            format_func=lambda value: filter_timeframe_labels[value],
+            options=PRIMARY_TIMEFRAME_OPTIONS,
+            format_func=_format_timeframe_label,
             key="candle_filter_timeframe",
         )
         candle_filter_measure_label = (
@@ -430,6 +511,29 @@ with config_col_3:
             key="candle_filter_max_body",
         )
 
+risk_col_1, risk_col_2, risk_col_3, risk_col_4 = st.columns(4)
+
+with risk_col_1:
+    with st.expander("Stop loss", expanded=True):
+        stop_loss_config = render_stop_loss()
+
+with risk_col_2:
+    with st.expander("Stop movel", expanded=True):
+        stop_movel_config = render_stop_movel()
+
+with risk_col_3:
+    with st.expander("Take profit", expanded=True):
+        take_profit_config = render_take_profit()
+
+with risk_col_4:
+    with st.expander("Trailing stop", expanded=True):
+        trailing_stop_config = render_trailing_stop()
+
+risk_management = {
+    "stop": stop_loss_config["target"],
+    "take": take_profit_config["target"],
+}
+
 entry_rules = []
 exit_rules = []
 
@@ -444,6 +548,16 @@ if save_clicked or show_clicked:
         "desired_market": desired_market,
         "operational_type": operational_type,
         "processing_mode": processing_mode,
+        "close_by_schedule": close_by_schedule == "Sim",
+        "operation_start_time": f"{operation_start_hour:02d}:{operation_start_minute:02d}",
+        "operation_end_time": f"{operation_end_hour:02d}:{operation_end_minute:02d}",
+        "close_operations_time": f"{close_operations_hour:02d}:{close_operations_minute:02d}",
+        "custom_stop_loss": stop_loss_config["enabled"],
+        "custom_take_profit": take_profit_config["enabled"],
+        "custom_stop_movel": stop_movel_config["enabled"],
+        "stop_movel_distance": stop_movel_config["distance"],
+        "custom_trailing_stop": trailing_stop_config["enabled"],
+        "trailing_stop_distance": trailing_stop_config["distance"],
         "primary_timeframe": primary_timeframe,
         "initial_volume": float(initial_volume),
         "max_spread": float(max_spread),

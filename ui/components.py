@@ -2,7 +2,14 @@ from __future__ import annotations
 
 import streamlit as st
 
-from config import INITIAL_INDICATORS, OPERATORS, PRICE_FIELDS, STOP_TYPES, TAKE_TYPES
+from config import (
+    INITIAL_INDICATORS,
+    OPERATORS,
+    PRICE_FIELDS,
+    STOP_TYPES,
+    TAKE_TYPES,
+    YES_NO_OPTIONS,
+)
 from utils.helpers import (
     build_operand,
     build_source_options,
@@ -113,42 +120,121 @@ def render_regra(prefix: str) -> dict:
         }
 
 
-def render_risco() -> dict:
-    stop_type = st.selectbox(
-        "Tipo de stop",
-        options=STOP_TYPES,
-        format_func=lambda value: "Pontos" if value == "points" else value,
-        key="risk_stop_type",
+def render_stop_loss() -> dict:
+    stop_customized = st.selectbox(
+        "Stop loss personalizado",
+        options=YES_NO_OPTIONS,
+        key="custom_stop_loss",
     )
-    stop_value = st.number_input(
-        "Valor do stop",
-        min_value=0.0,
-        value=100.0,
-        step=1.0,
-        key="risk_stop_value",
-    )
+    stop_type = STOP_TYPES[0]
+    stop_value = 0.0
 
-    take_type = st.selectbox(
-        "Tipo de take",
-        options=TAKE_TYPES,
-        format_func=lambda value: "Fixo" if value == "fixed" else value,
-        key="risk_take_type",
-    )
-    take_value = st.number_input(
-        "Valor do take",
-        min_value=0.0,
-        value=2.0,
-        step=0.1,
-        key="risk_take_value",
-    )
+    if stop_customized == "Sim":
+        stop_type = st.selectbox(
+            "Tipo de stop",
+            options=STOP_TYPES,
+            format_func=lambda value: "Pontos" if value == "points" else value,
+            key="risk_stop_type",
+        )
+        stop_value = st.number_input(
+            "Valor do stop",
+            min_value=0.0,
+            value=100.0,
+            step=1.0,
+            key="risk_stop_value",
+        )
+    else:
+        st.caption("Stop loss desativado.")
 
     return {
-        "stop": {
+        "enabled": stop_customized == "Sim",
+        "target": {
             "type": stop_type,
             "value": float(stop_value),
         },
-        "take": {
+    }
+
+
+def render_take_profit() -> dict:
+    take_customized = st.selectbox(
+        "Take profit personalizado",
+        options=YES_NO_OPTIONS,
+        key="custom_take_profit",
+    )
+    take_type = TAKE_TYPES[0]
+    take_value = 0.0
+
+    if take_customized == "Sim":
+        take_type = st.selectbox(
+            "Tipo de take",
+            options=TAKE_TYPES,
+            format_func=lambda value: "Fixo" if value == "fixed" else value,
+            key="risk_take_type",
+        )
+        take_value = st.number_input(
+            "Valor do take",
+            min_value=0.0,
+            value=2.0,
+            step=0.1,
+            key="risk_take_value",
+        )
+    else:
+        st.caption("Take profit desativado.")
+
+    return {
+        "enabled": take_customized == "Sim",
+        "target": {
             "type": take_type,
             "value": float(take_value),
         },
+    }
+
+
+def render_stop_movel() -> dict:
+    stop_movel_enabled = st.selectbox(
+        "Stop movel personalizado",
+        options=YES_NO_OPTIONS,
+        key="custom_stop_movel",
+    )
+    stop_movel_distance = 0.0
+
+    if stop_movel_enabled == "Sim":
+        stop_movel_distance = st.number_input(
+            "Distancia do stop movel",
+            min_value=0.0,
+            value=50.0,
+            step=1.0,
+            key="stop_movel_distance",
+        )
+    else:
+        st.caption("Stop movel desativado.")
+
+    return {
+        "enabled": stop_movel_enabled == "Sim",
+        "distance": float(stop_movel_distance),
+    }
+
+
+def render_trailing_stop() -> dict:
+    trailing_stop_enabled = st.selectbox(
+        "Trailing stop personalizado",
+        options=YES_NO_OPTIONS,
+        key="custom_trailing_stop",
+    )
+    trailing_stop_distance = 0.0
+
+    if trailing_stop_enabled == "Sim":
+        trailing_stop_distance = st.number_input(
+            "Distancia do trailing stop",
+            min_value=0.0,
+            value=50.0,
+            step=1.0,
+            key="trailing_stop_distance",
+        )
+    else:
+        st.caption("Trailing stop desativado.")
+
+    return {
+        "enabled": trailing_stop_enabled == "Sim",
+        "distance": float(trailing_stop_distance),
     }

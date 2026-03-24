@@ -15,12 +15,25 @@ _LAST_ERROR = ""
 
 _TIMEFRAME_MAP = {
     "M1": "TIMEFRAME_M1",
+    "M2": "TIMEFRAME_M2",
+    "M3": "TIMEFRAME_M3",
+    "M4": "TIMEFRAME_M4",
     "M5": "TIMEFRAME_M5",
+    "M6": "TIMEFRAME_M6",
+    "M10": "TIMEFRAME_M10",
+    "M12": "TIMEFRAME_M12",
     "M15": "TIMEFRAME_M15",
     "M30": "TIMEFRAME_M30",
     "H1": "TIMEFRAME_H1",
+    "H2": "TIMEFRAME_H2",
+    "H3": "TIMEFRAME_H3",
     "H4": "TIMEFRAME_H4",
+    "H6": "TIMEFRAME_H6",
+    "H8": "TIMEFRAME_H8",
+    "H12": "TIMEFRAME_H12",
     "D1": "TIMEFRAME_D1",
+    "W1": "TIMEFRAME_W1",
+    "MN1": "TIMEFRAME_MN1",
 }
 
 
