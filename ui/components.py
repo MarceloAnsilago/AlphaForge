@@ -73,6 +73,12 @@ def _format_stop_reference_example(mode: str, candle_count: int, reference: str)
     return "Ex.: 1 = primeiro candle, 2 = segundo candle, 3 = terceiro candle."
 
 
+def _render_stop_reference_note() -> None:
+    st.caption(
+        "A referencia exibida considera a compra. Na venda, os valores se invertem automaticamente: maxima vira minima e minima vira maxima."
+    )
+
+
 def render_regra(prefix: str) -> dict:
     with st.expander(humanize_rule_name(prefix), expanded=False):
         left_source = st.selectbox(
@@ -212,6 +218,7 @@ def render_stop_loss() -> dict:
                     options=STOP_CANDLE_REFERENCE_OPTIONS,
                     key="risk_stop_candle",
                 )
+                _render_stop_reference_note()
             else:
                 stop_calculation_method = st.selectbox(
                     "Calculo",
@@ -244,6 +251,7 @@ def render_stop_loss() -> dict:
                         stop_candle_reference,
                     )
                 )
+                _render_stop_reference_note()
             elif stop_calculation_method == "Multiplicar" and stop_calculation_type == "Calculo":
                 multiply_reference_col, multiply_candle_col, multiplier_col = st.columns(3)
                 with multiply_reference_col:
@@ -278,6 +286,7 @@ def render_stop_loss() -> dict:
                         stop_candle_reference,
                     )
                 )
+                _render_stop_reference_note()
         else:
             stop_value = st.number_input(
                 "Distancia do stop",
