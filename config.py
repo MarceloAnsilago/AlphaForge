@@ -58,7 +58,8 @@ PENDING_PRICE_REFERENCE_OPTIONS = ["Maxima", "Minima", "Abertura", "Fechamento",
 
 PENDING_CANDLE_REFERENCE_OPTIONS = ["Atual", "Penultimo", "Antipenultimo"]
 
-STOP_CANDLE_REFERENCE_OPTIONS = ["Ultimo", "Penultimo", "Antepenultimo", "Media", "Multiplicar"]
+STOP_CANDLE_REFERENCE_OPTIONS = ["Ultimo", "Penultimo", "Antepenultimo"]
+STOP_CALCULATION_OPTIONS = ["Media", "Multiplicar"]
 
 PENDING_EXPIRATION_OPTIONS = ["Nao expirar", 1, 2, 3, 4, 5]
 

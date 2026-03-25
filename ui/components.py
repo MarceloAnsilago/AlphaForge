@@ -7,6 +7,7 @@ from config import (
     OPERATORS,
     PENDING_PRICE_REFERENCE_OPTIONS,
     PRICE_FIELDS,
+    STOP_CALCULATION_OPTIONS,
     STOP_CANDLE_REFERENCE_OPTIONS,
     STOP_TYPES,
     YES_NO_OPTIONS,
@@ -34,6 +35,7 @@ RIGHT_OPERAND_TYPES = {
 
 STOP_MEDIA_REFERENCE_OPTIONS = ["Maxima", "Minima", "Abertura", "Fechamento"]
 STOP_MULTIPLY_REFERENCE_OPTIONS = ["Corpo", "Pavios"]
+STOP_PRICE_REFERENCE_OPTIONS = ["Maxima", "Minima", "Abertura", "Fechamento"]
 
 
 def _format_distance_type(value: str) -> str:
@@ -168,7 +170,9 @@ def render_stop_loss() -> dict:
     )
     stop_type = STOP_TYPES[0]
     stop_mode = "Calculo"
-    stop_reference = PENDING_PRICE_REFERENCE_OPTIONS[0]
+    stop_calculation_type = "Referencia de preco"
+    stop_calculation_method = STOP_CALCULATION_OPTIONS[0]
+    stop_reference = STOP_PRICE_REFERENCE_OPTIONS[0]
     stop_candle = STOP_CANDLE_REFERENCE_OPTIONS[0]
     stop_candle_period = 1
     stop_candle_reference = PENDING_PRICE_REFERENCE_OPTIONS[0]
@@ -189,17 +193,32 @@ def render_stop_loss() -> dict:
             horizontal=True,
         )
         if stop_mode == "Calculo":
-            stop_reference = st.selectbox(
-                "Referencia de preco",
-                options=PENDING_PRICE_REFERENCE_OPTIONS,
-                key="risk_stop_reference",
+            stop_calculation_type = st.selectbox(
+                "Tipo",
+                options=["Calculo", "Referencia de preco"],
+                key="risk_stop_calculation_type",
             )
-            stop_candle = st.selectbox(
-                "Candle",
-                options=STOP_CANDLE_REFERENCE_OPTIONS,
-                key="risk_stop_candle",
-            )
-            if stop_candle == "Media":
+            if stop_calculation_type == "Referencia de preco":
+                stop_reference = st.selectbox(
+                    "Referencia de preco",
+                    options=STOP_PRICE_REFERENCE_OPTIONS,
+                    key="risk_stop_reference",
+                )
+                current_stop_candle = st.session_state.get("risk_stop_candle")
+                if current_stop_candle not in STOP_CANDLE_REFERENCE_OPTIONS:
+                    st.session_state["risk_stop_candle"] = STOP_CANDLE_REFERENCE_OPTIONS[0]
+                stop_candle = st.selectbox(
+                    "Candle",
+                    options=STOP_CANDLE_REFERENCE_OPTIONS,
+                    key="risk_stop_candle",
+                )
+            else:
+                stop_calculation_method = st.selectbox(
+                    "Calculo",
+                    options=STOP_CALCULATION_OPTIONS,
+                    key="risk_stop_calculation_method",
+                )
+            if stop_calculation_method == "Media" and stop_calculation_type == "Calculo":
                 candle_period_col, candle_reference_col = st.columns(2)
                 with candle_period_col:
                     stop_candle_period = st.number_input(
@@ -220,12 +239,12 @@ def render_stop_loss() -> dict:
                     )
                 st.caption(
                     _format_stop_reference_example(
-                        stop_candle,
+                        stop_calculation_method,
                         int(stop_candle_period),
                         stop_candle_reference,
                     )
                 )
-            elif stop_candle == "Multiplicar":
+            elif stop_calculation_method == "Multiplicar" and stop_calculation_type == "Calculo":
                 multiply_reference_col, multiply_candle_col, multiplier_col = st.columns(3)
                 with multiply_reference_col:
                     current_stop_reference = st.session_state.get("risk_stop_candle_reference")
@@ -254,7 +273,7 @@ def render_stop_loss() -> dict:
                     )
                 st.caption(
                     _format_stop_reference_example(
-                        stop_candle,
+                        stop_calculation_method,
                         int(stop_candle_period),
                         stop_candle_reference,
                     )
@@ -271,6 +290,8 @@ def render_stop_loss() -> dict:
     return {
         "enabled": stop_enabled == "Sim",
         "mode": stop_mode,
+        "calculation_type": stop_calculation_type,
+        "calculation_method": stop_calculation_method,
         "reference": stop_reference,
         "candle": stop_candle,
         "candle_period": int(stop_candle_period),
