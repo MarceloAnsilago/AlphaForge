@@ -54,12 +54,14 @@ ORDER_EXECUTION_OPTIONS = ["A mercado", "Pendente"]
 
 PENDING_POSITION_OPTIONS = ["Referencia de preco", "Media"]
 
-PENDING_PRICE_REFERENCE_OPTIONS = ["Maxima", "Minima", "Abertura", "Fechamento"]
+PENDING_PRICE_REFERENCE_OPTIONS = ["Maxima", "Minima", "Abertura", "Fechamento", "Corpo", "Pavios"]
 
 PENDING_CANDLE_REFERENCE_OPTIONS = ["Atual", "Penultimo", "Antipenultimo"]
 
+STOP_CANDLE_REFERENCE_OPTIONS = ["Ultimo", "Penultimo", "Antepenultimo", "Media", "Multiplicar"]
+
 PENDING_EXPIRATION_OPTIONS = ["Nao expirar", 1, 2, 3, 4, 5]
 
-STOP_TYPES = ["points"]
+STOP_TYPES = ["points", "percentual"]
 
 TAKE_TYPES = ["RR", "fixed"]
