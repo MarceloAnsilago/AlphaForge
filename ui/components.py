@@ -192,12 +192,17 @@ def render_stop_loss() -> dict:
             format_func=_format_distance_type,
             key="risk_stop_type",
         )
-        stop_mode = st.radio(
-            "Modo do stop",
-            options=["Calculo", "Fixo"],
-            key="risk_stop_mode",
-            horizontal=True,
-        )
+        if stop_type == "percentual":
+            stop_mode = "Fixo"
+            st.caption("Stop percentual aceita apenas o modo fixo.")
+        else:
+            stop_mode = st.radio(
+                "Modo do stop",
+                options=["Calculo", "Fixo"],
+                key="risk_stop_mode",
+                horizontal=True,
+            )
+
         if stop_mode == "Calculo":
             stop_calculation_type = st.selectbox(
                 "Tipo",
@@ -291,8 +296,8 @@ def render_stop_loss() -> dict:
             stop_value = st.number_input(
                 "Distancia do stop",
                 min_value=0.0,
-                value=100.0,
-                step=1.0,
+                value=100.0 if stop_type == "points" else 1.0,
+                step=1.0 if stop_type == "points" else 0.1,
                 key="risk_stop_value",
             )
 
