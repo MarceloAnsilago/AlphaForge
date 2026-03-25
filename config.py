@@ -52,6 +52,8 @@ DISTANCE_CALCULATION_OPTIONS = ["Pontos", "Percentual"]
 
 ORDER_EXECUTION_OPTIONS = ["A mercado", "Pendente"]
 
+PENDING_POSITION_OPTIONS = ["Referencia de preco", "Media"]
+
 PENDING_PRICE_REFERENCE_OPTIONS = ["Maxima", "Minima", "Abertura", "Fechamento"]
 
 PENDING_CANDLE_REFERENCE_OPTIONS = ["Atual", "Penultimo", "Antipenultimo"]

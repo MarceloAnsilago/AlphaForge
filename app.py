@@ -12,6 +12,7 @@ from config import (
     ORDER_EXECUTION_OPTIONS,
     PENDING_EXPIRATION_OPTIONS,
     PENDING_CANDLE_REFERENCE_OPTIONS,
+    PENDING_POSITION_OPTIONS,
     PENDING_PRICE_REFERENCE_OPTIONS,
     PRIMARY_TIMEFRAME_OPTIONS,
     PROCESSING_MODE_OPTIONS,
@@ -62,11 +63,16 @@ def _apply_page_style() -> None:
         """
         <style>
             .block-container {
-                max-width: 100%;
-                padding-left: 2rem;
-                padding-right: 2rem;
+                max-width: 1100px;
+                margin: 0 auto;
+                padding-left: 1.5rem;
+                padding-right: 1.5rem;
                 padding-top: 2rem;
                 padding-bottom: 3rem;
+            }
+
+            [data-testid="stTabs"] {
+                width: 100%;
             }
         </style>
         """,
@@ -184,350 +190,381 @@ available_symbols = st.session_state["symbols"]
 market_data = st.session_state["market_data"]
 market_query = st.session_state["market_query"]
 
-top_col_1, top_col_2, top_col_3, top_col_4 = st.columns(4)
+main_tabs = st.tabs(
+    [
+        "1. Conexao MT5",
+        "2. Dados de mercado",
+        "3. Informacoes basicas da estrategia",
+        "4. Horario",
+        "5. Configuracao inicial",
+        "6. Tipo de ordens",
+        "7. Filtro de vela",
+        "8. Stop loss",
+        "9. Stop movel",
+        "10. Take profit",
+        "11. Trailing stop",
+    ]
+)
 
-with top_col_1:
-    with st.expander("Conexao MT5", expanded=True):
-        if st.button("Conectar ao MT5", use_container_width=True):
-            connected = initialize_mt5()
-            st.session_state["mt5_connected"] = connected
-            st.session_state["mt5_status"] = (
-                "Conectado ao MetaTrader 5." if connected else get_last_error()
-            )
-            st.session_state["symbols"] = get_symbols() if connected else []
-            available_symbols = st.session_state["symbols"]
+with main_tabs[0]:
+    if st.button("Conectar ao MT5", use_container_width=True):
+        connected = initialize_mt5()
+        st.session_state["mt5_connected"] = connected
+        st.session_state["mt5_status"] = (
+            "Conectado ao MetaTrader 5." if connected else get_last_error()
+        )
+        st.session_state["symbols"] = get_symbols() if connected else []
+        available_symbols = st.session_state["symbols"]
 
-        if st.session_state["mt5_connected"]:
-            st.success("Conexao ativa com o MetaTrader 5.")
+    if st.session_state["mt5_connected"]:
+        st.success("Conexao ativa com o MetaTrader 5.")
+    else:
+        if st.session_state["mt5_status"]:
+            st.error(st.session_state["mt5_status"])
         else:
-            if st.session_state["mt5_status"]:
-                st.error(st.session_state["mt5_status"])
+            st.info("Clique no botao para conectar ao MetaTrader 5.")
+
+with main_tabs[1]:
+    selected_symbol = st.selectbox(
+        "Simbolo",
+        options=available_symbols if available_symbols else ["Sem simbolos disponiveis"],
+        disabled=not bool(available_symbols),
+    )
+    selected_timeframe = st.selectbox(
+        "Tempo grafico",
+        options=PRIMARY_TIMEFRAME_OPTIONS,
+        format_func=_format_timeframe_label,
+        key="market_timeframe",
+    )
+    period_mode = st.selectbox(
+        "Periodo de cotacoes",
+        options=MARKET_PERIOD_OPTIONS,
+        format_func=lambda value: PERIOD_LABELS[value],
+    )
+    load_clicked = st.button("Carregar dados", use_container_width=True)
+
+    custom_start_date = None
+    custom_end_date = None
+    if period_mode == "CUSTOM":
+        custom_start_date = st.date_input(
+            "Data inicial",
+            value=date.today() - timedelta(days=30),
+        )
+        custom_end_date = st.date_input(
+            "Data final",
+            value=date.today(),
+        )
+
+    if load_clicked:
+        load_feedback = False
+        if not st.session_state["mt5_connected"]:
+            st.error("Conecte ao MT5 antes de carregar os dados.")
+        elif not available_symbols:
+            st.error("Nenhum simbolo disponivel para consulta.")
+        else:
+            effective_market_timeframe = _resolve_market_timeframe(selected_timeframe)
+            if effective_market_timeframe is None:
+                st.error(
+                    "Selecione um tempo grafico principal diferente de Corrente para carregar os dados de mercado."
+                )
             else:
-                st.info("Clique no botao para conectar ao MetaTrader 5.")
-
-with top_col_2:
-    with st.expander("Dados de mercado", expanded=True):
-        selected_symbol = st.selectbox(
-            "Simbolo",
-            options=available_symbols if available_symbols else ["Sem simbolos disponiveis"],
-            disabled=not bool(available_symbols),
-        )
-        selected_timeframe = st.selectbox(
-            "Tempo grafico",
-            options=PRIMARY_TIMEFRAME_OPTIONS,
-            format_func=_format_timeframe_label,
-            key="market_timeframe",
-        )
-        period_mode = st.selectbox(
-            "Periodo de cotacoes",
-            options=MARKET_PERIOD_OPTIONS,
-            format_func=lambda value: PERIOD_LABELS[value],
-        )
-        load_clicked = st.button("Carregar dados", use_container_width=True)
-
-        custom_start_date = None
-        custom_end_date = None
-        if period_mode == "CUSTOM":
-            custom_start_date = st.date_input(
-                "Data inicial",
-                value=date.today() - timedelta(days=30),
-            )
-            custom_end_date = st.date_input(
-                "Data final",
-                value=date.today(),
-            )
-
-        if load_clicked:
-            load_feedback = False
-            if not st.session_state["mt5_connected"]:
-                st.error("Conecte ao MT5 antes de carregar os dados.")
-            elif not available_symbols:
-                st.error("Nenhum simbolo disponivel para consulta.")
-            else:
-                effective_market_timeframe = _resolve_market_timeframe(selected_timeframe)
-                if effective_market_timeframe is None:
-                    st.error(
-                        "Selecione um tempo grafico principal diferente de Corrente para carregar os dados de mercado."
-                    )
+                period_range = build_market_period_range(
+                    period_mode,
+                    start_date=custom_start_date,
+                    end_date=custom_end_date,
+                )
+                if period_range is None:
+                    st.error(get_last_error())
                 else:
-                    period_range = build_market_period_range(
-                        period_mode,
-                        start_date=custom_start_date,
-                        end_date=custom_end_date,
+                    start, end = period_range
+                    candles = get_candles_by_range(
+                        selected_symbol,
+                        effective_market_timeframe,
+                        start=start,
+                        end=end,
                     )
-                    if period_range is None:
-                        st.error(get_last_error())
-                    else:
-                        start, end = period_range
-                        candles = get_candles_by_range(
-                            selected_symbol,
-                            effective_market_timeframe,
-                            start=start,
-                            end=end,
-                        )
-                        st.session_state["market_data"] = candles
-                        st.session_state["market_query"] = {
-                            "period_mode": period_mode,
-                            "custom_start_date": custom_start_date.isoformat()
-                            if custom_start_date is not None
-                            else None,
-                            "custom_end_date": custom_end_date.isoformat()
-                            if custom_end_date is not None
-                            else None,
-                        }
-                        market_data = candles
-                        market_query = st.session_state["market_query"]
-                        load_feedback = True
+                    st.session_state["market_data"] = candles
+                    st.session_state["market_query"] = {
+                        "period_mode": period_mode,
+                        "custom_start_date": custom_start_date.isoformat()
+                        if custom_start_date is not None
+                        else None,
+                        "custom_end_date": custom_end_date.isoformat()
+                        if custom_end_date is not None
+                        else None,
+                    }
+                    market_data = candles
+                    market_query = st.session_state["market_query"]
+                    load_feedback = True
 
-                if load_feedback and market_data.empty:
-                    st.warning(get_last_error() or "Nenhum dado retornado.")
-                elif load_feedback:
-                    st.success(f"{len(market_data)} candles carregados para {selected_symbol}.")
+            if load_feedback and market_data.empty:
+                st.warning(get_last_error() or "Nenhum dado retornado.")
+            elif load_feedback:
+                st.success(f"{len(market_data)} candles carregados para {selected_symbol}.")
 
-        if not market_data.empty:
-            loaded_period_mode = market_query["period_mode"] if market_query else period_mode
-            st.caption(
-                f"Periodo selecionado: {PERIOD_LABELS[loaded_period_mode]}"
-                + (
-                    f" ({market_query['custom_start_date']} ate {market_query['custom_end_date']})"
-                    if market_query
-                    and loaded_period_mode == "CUSTOM"
-                    and market_query["custom_start_date"]
-                    and market_query["custom_end_date"]
-                    else ""
-                )
-            )
-            st.dataframe(market_data, use_container_width=True)
-            st.line_chart(market_data.set_index("time")[["close"]], use_container_width=True)
-
-with top_col_3:
-    with st.expander("Informacoes basicas da estrategia", expanded=True):
-        strategy_name = st.text_input("Nome da estrategia", value="Minha Estrategia")
-        desired_market = st.selectbox("Mercado desejado", options=TARGET_MARKET_OPTIONS)
-        operational_type = st.selectbox(
-            "Tipo operacional",
-            options=OPERATIONAL_TYPE_OPTIONS,
-        )
-        processing_mode = st.selectbox(
-            "Modo de processamento",
-            options=PROCESSING_MODE_OPTIONS,
-        )
-        operate_buy = st.radio(
-            "Deseja operar na compra?",
-            options=YES_NO_OPTIONS,
-            horizontal=True,
-        )
-        operate_sell = st.radio(
-            "Deseja operar na venda?",
-            options=YES_NO_OPTIONS,
-            horizontal=True,
-        )
-
-        direction = _derive_direction(operate_buy, operate_sell)
-        if direction == "NONE":
-            st.warning("Ative compra, venda ou ambas para que a estrategia tenha direcao operacional.")
-        else:
-            st.caption(f"Direcao derivada: {direction}")
-
-with top_col_4:
-    with st.expander("Horario", expanded=True):
-        close_by_schedule = st.selectbox(
-            "Deseja zerar por horario",
-            options=YES_NO_OPTIONS,
-            key="close_by_schedule",
-        )
-        close_operations_hour, close_operations_minute = 23, 0
-        if close_by_schedule == "Sim":
-            close_operations_hour, close_operations_minute = _render_hour_minute_input(
-                "Horario de zerar as operacoes",
-                "close_operations",
-                23,
-                0,
-            )
+    if not market_data.empty:
+        loaded_period_mode = market_query["period_mode"] if market_query else period_mode
         st.caption(
-            "Para operar independente de horario, basta deixar o horario inicial igual ao horario final."
-        )
-        operation_start_hour, operation_start_minute = _render_hour_minute_input(
-            "Horario inicial das operacoes",
-            "operation_start",
-            0,
-            0,
-        )
-        operation_end_hour, operation_end_minute = _render_hour_minute_input(
-            "Horario final das operacoes",
-            "operation_end",
-            22,
-            0,
-        )
-
-config_col_1, config_col_2, config_col_3 = st.columns([1, 2, 1])
-
-with config_col_1:
-    with st.expander("Configuracao inicial", expanded=True):
-        primary_timeframe = st.selectbox(
-            "Tempo grafico principal",
-            options=PRIMARY_TIMEFRAME_OPTIONS,
-            format_func=_format_timeframe_label,
-            key="primary_timeframe",
-        )
-        initial_volume = st.number_input(
-            "Volume inicial",
-            min_value=0.01,
-            value=1.0,
-            step=0.01,
-            format="%.2f",
-        )
-        max_spread = st.number_input(
-            "Spread maximo",
-            min_value=0.0,
-            value=10.0,
-            step=0.1,
-            format="%.1f",
-        )
-
-with config_col_2:
-    with st.expander("Tipo de ordens", expanded=True):
-        distance_calculation_type = st.selectbox(
-            "Tipo de calculo das distancias",
-            options=DISTANCE_CALCULATION_OPTIONS,
-            key="distance_calculation_type",
-        )
-        distance_step = 1.0 if distance_calculation_type == "Pontos" else 0.1
-        entry_order_col, exit_order_col = st.columns(2)
-
-        with entry_order_col:
-            entry_order_type = st.selectbox(
-                "Ordem de entrada",
-                options=ORDER_EXECUTION_OPTIONS,
-                key="entry_order_type",
+            f"Periodo selecionado: {PERIOD_LABELS[loaded_period_mode]}"
+            + (
+                f" ({market_query['custom_start_date']} ate {market_query['custom_end_date']})"
+                if market_query
+                and loaded_period_mode == "CUSTOM"
+                and market_query["custom_start_date"]
+                and market_query["custom_end_date"]
+                else ""
             )
-            entry_pending_price_reference = None
-            entry_pending_candle_reference = None
-            entry_pending_order_distance = None
-            entry_pending_expiration = None
-            if entry_order_type == "Pendente":
-                entry_pending_price_reference = st.selectbox(
-                    "Referencia de preco",
-                    options=PENDING_PRICE_REFERENCE_OPTIONS,
-                    key="entry_pending_price_reference",
+        )
+        st.dataframe(market_data, use_container_width=True)
+        st.line_chart(market_data.set_index("time")[["close"]], use_container_width=True)
+
+with main_tabs[2]:
+    strategy_name = st.text_input("Nome da estrategia", value="Minha Estrategia")
+    desired_market = st.selectbox("Mercado desejado", options=TARGET_MARKET_OPTIONS)
+    operational_type = st.selectbox(
+        "Tipo operacional",
+        options=OPERATIONAL_TYPE_OPTIONS,
+    )
+    processing_mode = st.selectbox(
+        "Modo de processamento",
+        options=PROCESSING_MODE_OPTIONS,
+    )
+    operate_buy = st.radio(
+        "Deseja operar na compra?",
+        options=YES_NO_OPTIONS,
+        horizontal=True,
+    )
+    operate_sell = st.radio(
+        "Deseja operar na venda?",
+        options=YES_NO_OPTIONS,
+        horizontal=True,
+    )
+
+    direction = _derive_direction(operate_buy, operate_sell)
+    if direction == "NONE":
+        st.warning("Ative compra, venda ou ambas para que a estrategia tenha direcao operacional.")
+    else:
+        st.caption(f"Direcao derivada: {direction}")
+
+with main_tabs[3]:
+    close_by_schedule = st.selectbox(
+        "Deseja zerar por horario",
+        options=YES_NO_OPTIONS,
+        key="close_by_schedule",
+    )
+    close_operations_hour, close_operations_minute = 23, 0
+    if close_by_schedule == "Sim":
+        close_operations_hour, close_operations_minute = _render_hour_minute_input(
+            "Horario de zerar as operacoes",
+            "close_operations",
+            23,
+            0,
+        )
+    st.caption(
+        "Para operar independente de horario, basta deixar o horario inicial igual ao horario final."
+    )
+    operation_start_hour, operation_start_minute = _render_hour_minute_input(
+        "Horario inicial das operacoes",
+        "operation_start",
+        0,
+        0,
+    )
+    operation_end_hour, operation_end_minute = _render_hour_minute_input(
+        "Horario final das operacoes",
+        "operation_end",
+        22,
+        0,
+    )
+
+with main_tabs[4]:
+    primary_timeframe = st.selectbox(
+        "Tempo grafico principal",
+        options=PRIMARY_TIMEFRAME_OPTIONS,
+        format_func=_format_timeframe_label,
+        key="primary_timeframe",
+    )
+    initial_volume = st.number_input(
+        "Volume inicial",
+        min_value=0.01,
+        value=1.0,
+        step=0.01,
+        format="%.2f",
+    )
+    max_spread = st.number_input(
+        "Spread maximo",
+        min_value=0.0,
+        value=10.0,
+        step=0.1,
+        format="%.1f",
+    )
+
+with main_tabs[5]:
+    distance_calculation_type = st.selectbox(
+        "Tipo de calculo das distancias",
+        options=DISTANCE_CALCULATION_OPTIONS,
+        key="distance_calculation_type",
+    )
+    distance_step = 1.0 if distance_calculation_type == "Pontos" else 0.1
+    entry_order_col, exit_order_col = st.columns(2)
+
+    with entry_order_col:
+        entry_order_type = st.selectbox(
+            "Ordem de entrada",
+            options=ORDER_EXECUTION_OPTIONS,
+            key="entry_order_type",
+        )
+        entry_pending_positioning = None
+        entry_pending_average_candles = None
+        entry_pending_price_reference = None
+        entry_pending_candle_reference = None
+        entry_pending_order_distance = None
+        entry_pending_expiration = None
+        if entry_order_type == "Pendente":
+            entry_pending_positioning = st.selectbox(
+                "Posicionar",
+                options=PENDING_POSITION_OPTIONS,
+                key="entry_pending_positioning",
+            )
+            if entry_pending_positioning == "Media":
+                entry_pending_average_candles = st.number_input(
+                    "Quantidade de candles para media",
+                    min_value=1,
+                    value=3,
+                    step=1,
+                    key="entry_pending_average_candles",
                 )
+            entry_pending_price_reference = st.selectbox(
+                "Referencia de preco",
+                options=PENDING_PRICE_REFERENCE_OPTIONS,
+                key="entry_pending_price_reference",
+            )
+            if entry_pending_positioning == "Referencia de preco":
                 entry_pending_candle_reference = st.selectbox(
                     "Candle",
                     options=PENDING_CANDLE_REFERENCE_OPTIONS,
                     key="entry_pending_candle_reference",
                 )
-                entry_pending_order_distance = st.number_input(
-                    f"Distancia da ordem ({distance_calculation_type})",
-                    min_value=0.0,
-                    value=0.0,
-                    step=distance_step,
-                    key="entry_pending_order_distance",
-                )
-                entry_pending_expiration = st.selectbox(
-                    "Expiracao da ordem em candles futuros",
-                    options=PENDING_EXPIRATION_OPTIONS,
-                    format_func=lambda value: value if value == "Nao expirar" else f"{value} candle(s)",
-                    key="entry_pending_expiration",
-                )
-
-        with exit_order_col:
-            exit_order_type = st.selectbox(
-                "Ordem de saida",
-                options=ORDER_EXECUTION_OPTIONS,
-                key="exit_order_type",
+            entry_pending_order_distance = st.number_input(
+                f"Distancia da ordem ({distance_calculation_type})",
+                min_value=0.0,
+                value=0.0,
+                step=distance_step,
+                key="entry_pending_order_distance",
             )
-            exit_pending_price_reference = None
-            exit_pending_candle_reference = None
-            exit_pending_order_distance = None
-            exit_pending_expiration = None
-            if exit_order_type == "Pendente":
-                exit_pending_price_reference = st.selectbox(
-                    "Referencia de preco",
-                    options=PENDING_PRICE_REFERENCE_OPTIONS,
-                    key="exit_pending_price_reference",
+            entry_pending_expiration = st.selectbox(
+                "Expiracao da ordem em candles futuros",
+                options=PENDING_EXPIRATION_OPTIONS,
+                format_func=lambda value: value if value == "Nao expirar" else f"{value} candle(s)",
+                key="entry_pending_expiration",
+            )
+
+    with exit_order_col:
+        exit_order_type = st.selectbox(
+            "Ordem de saida",
+            options=ORDER_EXECUTION_OPTIONS,
+            key="exit_order_type",
+        )
+        exit_pending_positioning = None
+        exit_pending_average_candles = None
+        exit_pending_price_reference = None
+        exit_pending_candle_reference = None
+        exit_pending_order_distance = None
+        exit_pending_expiration = None
+        if exit_order_type == "Pendente":
+            exit_pending_positioning = st.selectbox(
+                "Posicionar",
+                options=PENDING_POSITION_OPTIONS,
+                key="exit_pending_positioning",
+            )
+            if exit_pending_positioning == "Media":
+                exit_pending_average_candles = st.number_input(
+                    "Quantidade de candles para media",
+                    min_value=1,
+                    value=3,
+                    step=1,
+                    key="exit_pending_average_candles",
                 )
+            exit_pending_price_reference = st.selectbox(
+                "Referencia de preco",
+                options=PENDING_PRICE_REFERENCE_OPTIONS,
+                key="exit_pending_price_reference",
+            )
+            if exit_pending_positioning == "Referencia de preco":
                 exit_pending_candle_reference = st.selectbox(
                     "Candle",
                     options=PENDING_CANDLE_REFERENCE_OPTIONS,
                     key="exit_pending_candle_reference",
                 )
-                exit_pending_order_distance = st.number_input(
-                    f"Distancia da ordem ({distance_calculation_type})",
-                    min_value=0.0,
-                    value=0.0,
-                    step=distance_step,
-                    key="exit_pending_order_distance",
-                )
-                exit_pending_expiration = st.selectbox(
-                    "Expiracao da ordem em candles futuros",
-                    options=PENDING_EXPIRATION_OPTIONS,
-                    format_func=lambda value: value if value == "Nao expirar" else f"{value} candle(s)",
-                    key="exit_pending_expiration",
-                )
+            exit_pending_order_distance = st.number_input(
+                f"Distancia da ordem ({distance_calculation_type})",
+                min_value=0.0,
+                value=0.0,
+                step=distance_step,
+                key="exit_pending_order_distance",
+            )
+            exit_pending_expiration = st.selectbox(
+                "Expiracao da ordem em candles futuros",
+                options=PENDING_EXPIRATION_OPTIONS,
+                format_func=lambda value: value if value == "Nao expirar" else f"{value} candle(s)",
+                key="exit_pending_expiration",
+            )
 
-with config_col_3:
-    with st.expander("Filtro de vela", expanded=True):
-        candle_filter_measure_type = st.selectbox(
-            "Medir em",
-            options=DISTANCE_CALCULATION_OPTIONS,
-            key="candle_filter_measure_type",
-        )
-        candle_filter_timeframe = st.selectbox(
-            "Tempo grafico",
-            options=PRIMARY_TIMEFRAME_OPTIONS,
-            format_func=_format_timeframe_label,
-            key="candle_filter_timeframe",
-        )
-        candle_filter_measure_label = (
-            "Em pontos" if candle_filter_measure_type == "Pontos" else "Em percentual"
-        )
-        candle_filter_measure_step = 1.0 if candle_filter_measure_type == "Pontos" else 0.1
-        candle_filter_min_size = st.number_input(
-            f"Tamanho minimo da vela ({candle_filter_measure_label})",
-            min_value=0.0,
-            value=0.0,
-            step=candle_filter_measure_step,
-            key="candle_filter_min_size",
-        )
-        candle_filter_max_size = st.number_input(
-            f"Tamanho maximo da vela ({candle_filter_measure_label})",
-            min_value=0.0,
-            value=0.0,
-            step=candle_filter_measure_step,
-            key="candle_filter_max_size",
-        )
-        candle_filter_min_body = st.number_input(
-            f"Minimo do corpo da vela ({candle_filter_measure_label})",
-            min_value=0.0,
-            value=0.0,
-            step=candle_filter_measure_step,
-            key="candle_filter_min_body",
-        )
-        candle_filter_max_body = st.number_input(
-            f"Maximo do corpo da vela ({candle_filter_measure_label})",
-            min_value=0.0,
-            value=0.0,
-            step=candle_filter_measure_step,
-            key="candle_filter_max_body",
-        )
+with main_tabs[6]:
+    candle_filter_measure_type = st.selectbox(
+        "Medir em",
+        options=DISTANCE_CALCULATION_OPTIONS,
+        key="candle_filter_measure_type",
+    )
+    candle_filter_timeframe = st.selectbox(
+        "Tempo grafico",
+        options=PRIMARY_TIMEFRAME_OPTIONS,
+        format_func=_format_timeframe_label,
+        key="candle_filter_timeframe",
+    )
+    candle_filter_measure_label = (
+        "Em pontos" if candle_filter_measure_type == "Pontos" else "Em percentual"
+    )
+    candle_filter_measure_step = 1.0 if candle_filter_measure_type == "Pontos" else 0.1
+    candle_filter_min_size = st.number_input(
+        f"Tamanho minimo da vela ({candle_filter_measure_label})",
+        min_value=0.0,
+        value=0.0,
+        step=candle_filter_measure_step,
+        key="candle_filter_min_size",
+    )
+    candle_filter_max_size = st.number_input(
+        f"Tamanho maximo da vela ({candle_filter_measure_label})",
+        min_value=0.0,
+        value=0.0,
+        step=candle_filter_measure_step,
+        key="candle_filter_max_size",
+    )
+    candle_filter_min_body = st.number_input(
+        f"Minimo do corpo da vela ({candle_filter_measure_label})",
+        min_value=0.0,
+        value=0.0,
+        step=candle_filter_measure_step,
+        key="candle_filter_min_body",
+    )
+    candle_filter_max_body = st.number_input(
+        f"Maximo do corpo da vela ({candle_filter_measure_label})",
+        min_value=0.0,
+        value=0.0,
+        step=candle_filter_measure_step,
+        key="candle_filter_max_body",
+    )
 
-risk_col_1, risk_col_2, risk_col_3, risk_col_4 = st.columns(4)
+with main_tabs[7]:
+    stop_loss_config = render_stop_loss()
 
-with risk_col_1:
-    with st.expander("Stop loss", expanded=True):
-        stop_loss_config = render_stop_loss()
+with main_tabs[8]:
+    stop_movel_config = render_stop_movel()
 
-with risk_col_2:
-    with st.expander("Stop movel", expanded=True):
-        stop_movel_config = render_stop_movel()
+with main_tabs[9]:
+    take_profit_config = render_take_profit()
 
-with risk_col_3:
-    with st.expander("Take profit", expanded=True):
-        take_profit_config = render_take_profit()
-
-with risk_col_4:
-    with st.expander("Trailing stop", expanded=True):
-        trailing_stop_config = render_trailing_stop()
+with main_tabs[10]:
+    trailing_stop_config = render_trailing_stop()
 
 risk_management = {
     "stop": stop_loss_config["target"],
@@ -564,10 +601,14 @@ if save_clicked or show_clicked:
         "distance_calculation_type": distance_calculation_type,
         "entry_order_type": entry_order_type,
         "exit_order_type": exit_order_type,
+        "entry_pending_positioning": entry_pending_positioning,
+        "entry_pending_average_candles": entry_pending_average_candles,
         "entry_pending_price_reference": entry_pending_price_reference,
         "entry_pending_candle_reference": entry_pending_candle_reference,
         "entry_pending_order_distance": entry_pending_order_distance,
         "entry_pending_expiration": entry_pending_expiration,
+        "exit_pending_positioning": exit_pending_positioning,
+        "exit_pending_average_candles": exit_pending_average_candles,
         "exit_pending_price_reference": exit_pending_price_reference,
         "exit_pending_candle_reference": exit_pending_candle_reference,
         "exit_pending_order_distance": exit_pending_order_distance,
