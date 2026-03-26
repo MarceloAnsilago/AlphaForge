@@ -472,26 +472,89 @@ def render_trailing_stop() -> dict:
         key="custom_trailing_stop",
         horizontal=True,
     )
-    trailing_stop_type = STOP_TYPES[0]
+    trailing_stop_calculation_type = STOP_TYPES[0]
+    trailing_stop_type = STOP_MOVEL_MODE_OPTIONS[0]
+    trailing_stop_acionar_a_favor = 0.0
+    trailing_stop_passe = 0.0
+    trailing_stop_candles_basis = "distance"
     trailing_stop_distance = 0.0
+    trailing_stop_candle_count = 1
+    trailing_stop_reference = STOP_PRICE_REFERENCE_OPTIONS[0]
+    trailing_stop_indicator = INITIAL_INDICATORS[0]
 
     if trailing_stop_enabled == "Sim":
-        trailing_stop_type = st.selectbox(
-            "Tipo do trailing stop",
+        trailing_stop_calculation_type = st.selectbox(
+            "Calculo",
             options=STOP_TYPES,
             format_func=_format_distance_type,
+            key="trailing_stop_calculation_type",
+        )
+        trailing_stop_type = st.selectbox(
+            "Tipo",
+            options=STOP_MOVEL_MODE_OPTIONS,
+            format_func=_format_stop_movel_mode,
             key="trailing_stop_type",
         )
-        trailing_stop_distance = st.number_input(
-            "Distancia do trailing stop",
-            min_value=0.0,
-            value=50.0,
-            step=1.0,
-            key="trailing_stop_distance",
-        )
+
+        if trailing_stop_type == "padrao":
+            trailing_stop_acionar_a_favor = st.number_input(
+                "Acionar a favor",
+                min_value=0.0,
+                value=0.0,
+                step=1.0,
+                key="trailing_stop_acionar_a_favor",
+            )
+            trailing_stop_passe = st.number_input(
+                "Passe",
+                min_value=0.0,
+                value=0.0,
+                step=1.0,
+                key="trailing_stop_passe",
+            )
+        elif trailing_stop_type == "candles":
+            trailing_stop_candles_basis = st.selectbox(
+                "Base",
+                options=["distance", "candle_count"],
+                format_func=_format_stop_movel_candles_basis,
+                key="trailing_stop_candles_basis",
+            )
+            if trailing_stop_candles_basis == "distance":
+                trailing_stop_distance = st.number_input(
+                    "Distancia",
+                    min_value=0.0,
+                    value=0.0,
+                    step=1.0,
+                    key="trailing_stop_distance",
+                )
+            else:
+                trailing_stop_candle_count = st.number_input(
+                    "Numero de candles",
+                    min_value=1,
+                    value=1,
+                    step=1,
+                    key="trailing_stop_candle_count",
+                )
+            trailing_stop_reference = st.selectbox(
+                "Posicionar em",
+                options=STOP_PRICE_REFERENCE_OPTIONS,
+                key="trailing_stop_reference",
+            )
+        elif trailing_stop_type == "indicator":
+            trailing_stop_indicator = st.selectbox(
+                "Indicador",
+                options=INITIAL_INDICATORS,
+                key="trailing_stop_indicator",
+            )
 
     return {
         "enabled": trailing_stop_enabled == "Sim",
+        "calculation_type": trailing_stop_calculation_type,
         "type": trailing_stop_type,
+        "acionar_a_favor": float(trailing_stop_acionar_a_favor),
+        "passe": float(trailing_stop_passe),
+        "candles_basis": trailing_stop_candles_basis,
         "distance": float(trailing_stop_distance),
+        "candle_count": int(trailing_stop_candle_count),
+        "reference": trailing_stop_reference,
+        "indicator": trailing_stop_indicator,
     }
