@@ -64,6 +64,6 @@ STOP_CALCULATION_OPTIONS = ["Media", "Multiplicar"]
 PENDING_EXPIRATION_OPTIONS = ["Nao expirar", 1, 2, 3, 4, 5]
 
 STOP_TYPES = ["points", "percentual"]
-STOP_MOVEL_MODE_OPTIONS = ["padrao", "candles"]
+STOP_MOVEL_MODE_OPTIONS = ["padrao", "candles", "indicator"]
 
 TAKE_TYPES = ["RR", "fixed"]

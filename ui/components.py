@@ -47,6 +47,7 @@ def _format_stop_movel_mode(value: str) -> str:
     mode_labels = {
         "padrao": "Padrao",
         "candles": "Candles",
+        "indicator": "Indicador",
     }
     return mode_labels.get(value, value)
 
@@ -384,6 +385,7 @@ def render_stop_movel() -> dict:
     stop_movel_distance = 0.0
     stop_movel_candle_count = 1
     stop_movel_reference = STOP_PRICE_REFERENCE_OPTIONS[0]
+    stop_movel_indicator = INITIAL_INDICATORS[0]
 
     if stop_movel_enabled == "Sim":
         stop_movel_calculation_type = st.selectbox(
@@ -442,6 +444,12 @@ def render_stop_movel() -> dict:
                 options=STOP_PRICE_REFERENCE_OPTIONS,
                 key="stop_movel_reference",
             )
+        elif stop_movel_type == "indicator":
+            stop_movel_indicator = st.selectbox(
+                "Indicador",
+                options=INITIAL_INDICATORS,
+                key="stop_movel_indicator",
+            )
 
     return {
         "enabled": stop_movel_enabled == "Sim",
@@ -453,6 +461,7 @@ def render_stop_movel() -> dict:
         "distance": float(stop_movel_distance),
         "candle_count": int(stop_movel_candle_count),
         "reference": stop_movel_reference,
+        "indicator": stop_movel_indicator,
     }
 
 

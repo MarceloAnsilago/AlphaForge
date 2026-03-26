@@ -619,6 +619,7 @@ if save_clicked or show_clicked:
         "stop_movel_distance": stop_movel_config["distance"],
         "stop_movel_candle_count": stop_movel_config["candle_count"],
         "stop_movel_reference": stop_movel_config["reference"],
+        "stop_movel_indicator": stop_movel_config["indicator"],
         "custom_trailing_stop": trailing_stop_config["enabled"],
         "trailing_stop_type": trailing_stop_config["type"],
         "trailing_stop_distance": trailing_stop_config["distance"],
