@@ -9,6 +9,7 @@ from config import (
     PRICE_FIELDS,
     STOP_CALCULATION_OPTIONS,
     STOP_CANDLE_REFERENCE_OPTIONS,
+    STOP_MOVEL_MODE_OPTIONS,
     STOP_TYPES,
     YES_NO_OPTIONS,
 )
@@ -40,6 +41,22 @@ STOP_PRICE_REFERENCE_OPTIONS = ["Maxima", "Minima", "Abertura", "Fechamento"]
 
 def _format_distance_type(value: str) -> str:
     return "Pontos" if value == "points" else "Percentual"
+
+
+def _format_stop_movel_mode(value: str) -> str:
+    mode_labels = {
+        "padrao": "Padrao",
+        "candles": "Candles",
+    }
+    return mode_labels.get(value, value)
+
+
+def _format_stop_movel_candles_basis(value: str) -> str:
+    basis_labels = {
+        "distance": "Distancia",
+        "candle_count": "Numero de candles",
+    }
+    return basis_labels.get(value, value)
 
 
 def _format_stop_reference_example(mode: str, candle_count: int, reference: str) -> str:
@@ -359,28 +376,83 @@ def render_stop_movel() -> dict:
         key="custom_stop_movel",
         horizontal=True,
     )
-    stop_movel_type = STOP_TYPES[0]
+    stop_movel_calculation_type = STOP_TYPES[0]
+    stop_movel_type = STOP_MOVEL_MODE_OPTIONS[0]
+    stop_movel_acionar_a_favor = 0.0
+    stop_movel_passe = 0.0
+    stop_movel_candles_basis = "distance"
     stop_movel_distance = 0.0
+    stop_movel_candle_count = 1
+    stop_movel_reference = STOP_PRICE_REFERENCE_OPTIONS[0]
 
     if stop_movel_enabled == "Sim":
-        stop_movel_type = st.selectbox(
-            "Tipo do stop movel",
+        stop_movel_calculation_type = st.selectbox(
+            "Calculo",
             options=STOP_TYPES,
             format_func=_format_distance_type,
+            key="stop_movel_calculation_type",
+        )
+        stop_movel_type = st.selectbox(
+            "Tipo",
+            options=STOP_MOVEL_MODE_OPTIONS,
+            format_func=_format_stop_movel_mode,
             key="stop_movel_type",
         )
-        stop_movel_distance = st.number_input(
-            "Distancia do stop movel",
-            min_value=0.0,
-            value=50.0,
-            step=1.0,
-            key="stop_movel_distance",
-        )
+
+        if stop_movel_type == "padrao":
+            stop_movel_acionar_a_favor = st.number_input(
+                "Acionar a favor",
+                min_value=0.0,
+                value=0.0,
+                step=1.0,
+                key="stop_movel_acionar_a_favor",
+            )
+            stop_movel_passe = st.number_input(
+                "Passe",
+                min_value=0.0,
+                value=0.0,
+                step=1.0,
+                key="stop_movel_passe",
+            )
+        elif stop_movel_type == "candles":
+            stop_movel_candles_basis = st.selectbox(
+                "Base",
+                options=["distance", "candle_count"],
+                format_func=_format_stop_movel_candles_basis,
+                key="stop_movel_candles_basis",
+            )
+            if stop_movel_candles_basis == "distance":
+                stop_movel_distance = st.number_input(
+                    "Distancia",
+                    min_value=0.0,
+                    value=0.0,
+                    step=1.0,
+                    key="stop_movel_distance",
+                )
+            else:
+                stop_movel_candle_count = st.number_input(
+                    "Numero de candles",
+                    min_value=1,
+                    value=1,
+                    step=1,
+                    key="stop_movel_candle_count",
+                )
+            stop_movel_reference = st.selectbox(
+                "Posicionar em",
+                options=STOP_PRICE_REFERENCE_OPTIONS,
+                key="stop_movel_reference",
+            )
 
     return {
         "enabled": stop_movel_enabled == "Sim",
+        "calculation_type": stop_movel_calculation_type,
         "type": stop_movel_type,
+        "acionar_a_favor": float(stop_movel_acionar_a_favor),
+        "passe": float(stop_movel_passe),
+        "candles_basis": stop_movel_candles_basis,
         "distance": float(stop_movel_distance),
+        "candle_count": int(stop_movel_candle_count),
+        "reference": stop_movel_reference,
     }
 
 
