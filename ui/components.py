@@ -558,3 +558,74 @@ def render_trailing_stop() -> dict:
         "reference": trailing_stop_reference,
         "indicator": trailing_stop_indicator,
     }
+
+
+def render_saidas_parciais() -> dict:
+    partial_exits_enabled = st.radio(
+        "Usar saidas parciais?",
+        options=YES_NO_OPTIONS,
+        key="custom_partial_exits",
+        horizontal=True,
+    )
+    partial_exits_calculation_type = STOP_TYPES[0]
+    partial_exits_levels: list[dict[str, float]] = []
+
+    if partial_exits_enabled == "Sim":
+        partial_exits_calculation_type = st.selectbox(
+            "Calculo",
+            options=STOP_TYPES,
+            format_func=_format_distance_type,
+            key="partial_exits_calculation_type",
+        )
+        partial_exit_value_label = (
+            "Pontos" if partial_exits_calculation_type == "points" else "% da posicao"
+        )
+        partial_exits_count = st.number_input(
+            "Quantidade de saidas",
+            min_value=1,
+            max_value=3,
+            value=1,
+            step=1,
+            key="partial_exits_count",
+        )
+
+        total_exit_percent = 0.0
+        for level_index in range(int(partial_exits_count)):
+            with st.expander(f"Saida parcial {level_index + 1}", expanded=level_index == 0):
+                target_col, percent_col = st.columns(2)
+                with target_col:
+                    target_distance = st.number_input(
+                        "Distancia alvo",
+                        min_value=0.0,
+                        value=float((level_index + 1) * 100),
+                        step=1.0,
+                        key=f"partial_exit_target_{level_index}",
+                    )
+                with percent_col:
+                    exit_percent = st.number_input(
+                        partial_exit_value_label,
+                        min_value=0.0,
+                        max_value=100.0,
+                        value=50.0 if level_index == 0 else 25.0,
+                        step=1.0,
+                        key=f"partial_exit_percent_{level_index}",
+                    )
+
+                total_exit_percent += float(exit_percent)
+                partial_exits_levels.append(
+                    {
+                        "target_distance": float(target_distance),
+                        "exit_percent": float(exit_percent),
+                    }
+                )
+
+        if total_exit_percent > 100:
+            st.warning("A soma dos percentuais de saida parcial esta acima de 100%.")
+        else:
+            st.caption(f"Percentual total configurado: {total_exit_percent:.1f}%")
+
+    return {
+        "enabled": partial_exits_enabled == "Sim",
+        "calculation_type": partial_exits_calculation_type,
+        "levels": partial_exits_levels,
+    }

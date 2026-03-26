@@ -28,6 +28,7 @@ from infra.mt5_gateway import (
     initialize_mt5,
 )
 from ui.components import (
+    render_saidas_parciais,
     render_stop_loss,
     render_stop_movel,
     render_take_profit,
@@ -203,6 +204,7 @@ main_tabs = st.tabs(
         "9. Stop movel",
         "10. Take profit",
         "11. Trailing stop",
+        "12. Saidas parciais",
     ]
 )
 
@@ -577,6 +579,10 @@ with main_tabs[10]:
     with st.expander("Trailing stop", expanded=False):
         trailing_stop_config = render_trailing_stop()
 
+with main_tabs[11]:
+    with st.expander("Saidas parciais", expanded=False):
+        partial_exits_config = render_saidas_parciais()
+
 risk_management = {
     "stop": stop_loss_config["target"],
     "take": take_profit_config["target"],
@@ -631,6 +637,9 @@ if save_clicked or show_clicked:
         "trailing_stop_candle_count": trailing_stop_config["candle_count"],
         "trailing_stop_reference": trailing_stop_config["reference"],
         "trailing_stop_indicator": trailing_stop_config["indicator"],
+        "custom_partial_exits": partial_exits_config["enabled"],
+        "partial_exits_calculation_type": partial_exits_config["calculation_type"],
+        "partial_exits_levels": partial_exits_config["levels"],
         "primary_timeframe": primary_timeframe,
         "initial_volume": float(initial_volume),
         "max_spread": float(max_spread),
