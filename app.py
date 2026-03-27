@@ -29,6 +29,7 @@ from infra.mt5_gateway import (
 )
 from ui.components import (
     render_saidas_parciais,
+    render_sinais_prontos,
     render_stop_loss,
     render_stop_movel,
     render_take_profit,
@@ -205,6 +206,7 @@ main_tabs = st.tabs(
         "10. Take profit",
         "11. Trailing stop",
         "12. Saidas parciais",
+        "13. Sinais prontos",
     ]
 )
 
@@ -583,6 +585,9 @@ with main_tabs[11]:
     with st.expander("Saidas parciais", expanded=False):
         partial_exits_config = render_saidas_parciais()
 
+with main_tabs[12]:
+    ready_signals_config = render_sinais_prontos()
+
 risk_management = {
     "stop": stop_loss_config["target"],
     "take": take_profit_config["target"],
@@ -640,6 +645,7 @@ if save_clicked or show_clicked:
         "custom_partial_exits": partial_exits_config["enabled"],
         "partial_exits_calculation_type": partial_exits_config["calculation_type"],
         "partial_exits_levels": partial_exits_config["levels"],
+        "ready_signals": ready_signals_config,
         "primary_timeframe": primary_timeframe,
         "initial_volume": float(initial_volume),
         "max_spread": float(max_spread),

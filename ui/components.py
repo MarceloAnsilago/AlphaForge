@@ -37,6 +37,9 @@ RIGHT_OPERAND_TYPES = {
 STOP_MEDIA_REFERENCE_OPTIONS = ["Maxima", "Minima", "Abertura", "Fechamento"]
 STOP_MULTIPLY_REFERENCE_OPTIONS = ["Corpo", "Pavios"]
 STOP_PRICE_REFERENCE_OPTIONS = ["Maxima", "Minima", "Abertura", "Fechamento"]
+BAND_CHANNEL_INDICATOR_OPTIONS = ["BBANDS"]
+CROSSOVER_INDICATOR_OPTIONS = ["SMA", "EMA"]
+OVERBOUGHT_OVERSOLD_INDICATOR_OPTIONS = ["RSI", "CCI"]
 
 
 def _format_distance_type(value: str) -> str:
@@ -628,4 +631,205 @@ def render_saidas_parciais() -> dict:
         "enabled": partial_exits_enabled == "Sim",
         "calculation_type": partial_exits_calculation_type,
         "levels": partial_exits_levels,
+    }
+
+
+def render_sinais_prontos() -> dict:
+    band_channels_enabled = False
+    band_channels_indicator = BAND_CHANNEL_INDICATOR_OPTIONS[0]
+    band_channels_period = 20
+    band_channels_deviation = 2.0
+    band_channels_signal = "Toque na banda inferior"
+
+    crossover_enabled = False
+    crossover_fast_indicator = CROSSOVER_INDICATOR_OPTIONS[0]
+    crossover_fast_period = 9
+    crossover_slow_indicator = CROSSOVER_INDICATOR_OPTIONS[1]
+    crossover_slow_period = 21
+    crossover_signal = "Cruzamento para compra"
+
+    overbought_oversold_enabled = False
+    overbought_oversold_indicator = OVERBOUGHT_OVERSOLD_INDICATOR_OPTIONS[0]
+    overbought_oversold_period = 14
+    overbought_level = 70
+    oversold_level = 30
+    overbought_oversold_signal = "Retorno da sobrevenda"
+
+    with st.expander("Canais de bandas", expanded=False):
+        band_channels_enabled = (
+            st.radio(
+                "Usar sinal de canais de bandas?",
+                options=YES_NO_OPTIONS,
+                key="ready_band_channels_enabled",
+                horizontal=True,
+            )
+            == "Sim"
+        )
+        if band_channels_enabled:
+            indicator_col, period_col = st.columns(2)
+            with indicator_col:
+                band_channels_indicator = st.selectbox(
+                    "Indicador",
+                    options=BAND_CHANNEL_INDICATOR_OPTIONS,
+                    key="ready_band_channels_indicator",
+                )
+            with period_col:
+                band_channels_period = st.number_input(
+                    "Periodo",
+                    min_value=1,
+                    value=20,
+                    step=1,
+                    key="ready_band_channels_period",
+                )
+            deviation_col, signal_col = st.columns(2)
+            with deviation_col:
+                band_channels_deviation = st.number_input(
+                    "Desvio",
+                    min_value=0.1,
+                    value=2.0,
+                    step=0.1,
+                    key="ready_band_channels_deviation",
+                )
+            with signal_col:
+                band_channels_signal = st.selectbox(
+                    "Sinal",
+                    options=[
+                        "Toque na banda inferior",
+                        "Toque na banda superior",
+                        "Retorno para dentro do canal",
+                    ],
+                    key="ready_band_channels_signal",
+                )
+
+    with st.expander("Cruzamentos", expanded=False):
+        crossover_enabled = (
+            st.radio(
+                "Usar sinal de cruzamentos?",
+                options=YES_NO_OPTIONS,
+                key="ready_crossover_enabled",
+                horizontal=True,
+            )
+            == "Sim"
+        )
+        if crossover_enabled:
+            fast_indicator_col, fast_period_col = st.columns(2)
+            with fast_indicator_col:
+                crossover_fast_indicator = st.selectbox(
+                    "Indicador rapido",
+                    options=CROSSOVER_INDICATOR_OPTIONS,
+                    key="ready_crossover_fast_indicator",
+                )
+            with fast_period_col:
+                crossover_fast_period = st.number_input(
+                    "Periodo rapido",
+                    min_value=1,
+                    value=9,
+                    step=1,
+                    key="ready_crossover_fast_period",
+                )
+            slow_indicator_col, slow_period_col = st.columns(2)
+            with slow_indicator_col:
+                crossover_slow_indicator = st.selectbox(
+                    "Indicador lento",
+                    options=CROSSOVER_INDICATOR_OPTIONS,
+                    index=1,
+                    key="ready_crossover_slow_indicator",
+                )
+            with slow_period_col:
+                crossover_slow_period = st.number_input(
+                    "Periodo lento",
+                    min_value=1,
+                    value=21,
+                    step=1,
+                    key="ready_crossover_slow_period",
+                )
+            crossover_signal = st.selectbox(
+                "Sinal",
+                options=[
+                    "Cruzamento para compra",
+                    "Cruzamento para venda",
+                    "Ambos",
+                ],
+                key="ready_crossover_signal",
+            )
+
+    with st.expander("Sobre comprado/vendido", expanded=False):
+        overbought_oversold_enabled = (
+            st.radio(
+                "Usar sinal de sobre comprado/vendido?",
+                options=YES_NO_OPTIONS,
+                key="ready_overbought_oversold_enabled",
+                horizontal=True,
+            )
+            == "Sim"
+        )
+        if overbought_oversold_enabled:
+            indicator_col, period_col = st.columns(2)
+            with indicator_col:
+                overbought_oversold_indicator = st.selectbox(
+                    "Indicador",
+                    options=OVERBOUGHT_OVERSOLD_INDICATOR_OPTIONS,
+                    key="ready_overbought_oversold_indicator",
+                )
+            with period_col:
+                overbought_oversold_period = st.number_input(
+                    "Periodo",
+                    min_value=1,
+                    value=14,
+                    step=1,
+                    key="ready_overbought_oversold_period",
+                )
+            overbought_col, oversold_col = st.columns(2)
+            with overbought_col:
+                overbought_level = st.number_input(
+                    "Nivel de sobrecompra",
+                    min_value=0,
+                    max_value=100,
+                    value=70,
+                    step=1,
+                    key="ready_overbought_level",
+                )
+            with oversold_col:
+                oversold_level = st.number_input(
+                    "Nivel de sobrevenda",
+                    min_value=0,
+                    max_value=100,
+                    value=30,
+                    step=1,
+                    key="ready_oversold_level",
+                )
+            overbought_oversold_signal = st.selectbox(
+                "Sinal",
+                options=[
+                    "Retorno da sobrevenda",
+                    "Retorno da sobrecompra",
+                    "Ambos",
+                ],
+                key="ready_overbought_oversold_signal",
+            )
+
+    return {
+        "band_channels": {
+            "enabled": band_channels_enabled,
+            "indicator": band_channels_indicator,
+            "period": int(band_channels_period),
+            "deviation": float(band_channels_deviation),
+            "signal": band_channels_signal,
+        },
+        "crossovers": {
+            "enabled": crossover_enabled,
+            "fast_indicator": crossover_fast_indicator,
+            "fast_period": int(crossover_fast_period),
+            "slow_indicator": crossover_slow_indicator,
+            "slow_period": int(crossover_slow_period),
+            "signal": crossover_signal,
+        },
+        "overbought_oversold": {
+            "enabled": overbought_oversold_enabled,
+            "indicator": overbought_oversold_indicator,
+            "period": int(overbought_oversold_period),
+            "overbought_level": int(overbought_level),
+            "oversold_level": int(oversold_level),
+            "signal": overbought_oversold_signal,
+        },
     }
