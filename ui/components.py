@@ -635,11 +635,11 @@ def render_saidas_parciais() -> dict:
 
 
 def render_sinais_prontos() -> dict:
+    band_channels_signal = "Nao usar"
     band_channels_enabled = False
     band_channels_indicator = BAND_CHANNEL_INDICATOR_OPTIONS[0]
     band_channels_period = 20
     band_channels_deviation = 2.0
-    band_channels_signal = "Toque na banda inferior"
 
     crossover_enabled = False
     crossover_fast_indicator = CROSSOVER_INDICATOR_OPTIONS[0]
@@ -648,23 +648,28 @@ def render_sinais_prontos() -> dict:
     crossover_slow_period = 21
     crossover_signal = "Cruzamento para compra"
 
+    overbought_oversold_signal = "Nao usar"
     overbought_oversold_enabled = False
     overbought_oversold_indicator = OVERBOUGHT_OVERSOLD_INDICATOR_OPTIONS[0]
     overbought_oversold_period = 14
     overbought_level = 70
     oversold_level = 30
-    overbought_oversold_signal = "Retorno da sobrevenda"
 
     with st.expander("Canais de bandas", expanded=False):
-        band_channels_enabled = (
-            st.radio(
-                "Usar sinal de canais de bandas?",
-                options=YES_NO_OPTIONS,
-                key="ready_band_channels_enabled",
-                horizontal=True,
-            )
-            == "Sim"
+        band_channels_signal = st.selectbox(
+            "Condicao",
+            options=[
+                "Nao usar",
+                "Fechou fora",
+                "Fechou dentro e saiu",
+                "Fechou dentro e fechou fora",
+                "Fechou fora e voltou",
+                "Fechou fora e fechou dentro",
+                "Estando fora",
+            ],
+            key="ready_band_channels_signal",
         )
+        band_channels_enabled = band_channels_signal != "Nao usar"
         if band_channels_enabled:
             indicator_col, period_col = st.columns(2)
             with indicator_col:
@@ -691,15 +696,7 @@ def render_sinais_prontos() -> dict:
                     key="ready_band_channels_deviation",
                 )
             with signal_col:
-                band_channels_signal = st.selectbox(
-                    "Sinal",
-                    options=[
-                        "Toque na banda inferior",
-                        "Toque na banda superior",
-                        "Retorno para dentro do canal",
-                    ],
-                    key="ready_band_channels_signal",
-                )
+                st.caption(f"Condicao selecionada: {band_channels_signal}")
 
     with st.expander("Cruzamentos", expanded=False):
         crossover_enabled = (
@@ -754,15 +751,20 @@ def render_sinais_prontos() -> dict:
             )
 
     with st.expander("Sobre comprado/vendido", expanded=False):
-        overbought_oversold_enabled = (
-            st.radio(
-                "Usar sinal de sobre comprado/vendido?",
-                options=YES_NO_OPTIONS,
-                key="ready_overbought_oversold_enabled",
-                horizontal=True,
-            )
-            == "Sim"
+        overbought_oversold_signal = st.selectbox(
+            "Condicao",
+            options=[
+                "Nao usar",
+                "Fechou fora",
+                "Fechou dentro e saiu",
+                "Fechou dentro e fechou fora",
+                "Fechou fora e voltou",
+                "Fechou fora e fechou dentro",
+                "Estando fora",
+            ],
+            key="ready_overbought_oversold_signal",
         )
+        overbought_oversold_enabled = overbought_oversold_signal != "Nao usar"
         if overbought_oversold_enabled:
             indicator_col, period_col = st.columns(2)
             with indicator_col:
@@ -798,15 +800,7 @@ def render_sinais_prontos() -> dict:
                     step=1,
                     key="ready_oversold_level",
                 )
-            overbought_oversold_signal = st.selectbox(
-                "Sinal",
-                options=[
-                    "Retorno da sobrevenda",
-                    "Retorno da sobrecompra",
-                    "Ambos",
-                ],
-                key="ready_overbought_oversold_signal",
-            )
+            st.caption(f"Condicao selecionada: {overbought_oversold_signal}")
 
     return {
         "band_channels": {
