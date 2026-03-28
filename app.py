@@ -443,14 +443,14 @@ with main_tabs[10]:
         )
         candle_filter_measure_step = 1.0 if candle_filter_measure_type == "Pontos" else 0.1
         candle_filter_min_size = st.number_input(
-            f"Tamanho minimo da vela ({candle_filter_measure_label})",
+            f"Tamanho minimo da vela - pavios ({candle_filter_measure_label})",
             min_value=0.0,
             value=0.0,
             step=candle_filter_measure_step,
             key="candle_filter_min_size",
         )
         candle_filter_max_size = st.number_input(
-            f"Tamanho maximo da vela ({candle_filter_measure_label})",
+            f"Tamanho maximo da vela - pavios ({candle_filter_measure_label})",
             min_value=0.0,
             value=0.0,
             step=candle_filter_measure_step,
