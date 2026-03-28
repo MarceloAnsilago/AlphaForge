@@ -199,13 +199,12 @@ main_tabs = st.tabs(
         "3. Informacoes basicas da estrategia",
         "4. Horario",
         "5. Configuracao inicial",
-        "6. Filtro de vela",
-        "7. Stop loss",
-        "8. Stop movel",
-        "9. Take profit",
-        "10. Trailing stop",
-        "11. Saidas parciais",
-        "12. Sinais prontos",
+        "6. Stop loss",
+        "7. Stop movel",
+        "8. Take profit",
+        "9. Trailing stop",
+        "10. Saidas parciais",
+        "11. Sinais prontos",
     ]
 )
 
@@ -407,6 +406,26 @@ with main_tabs[4]:
         )
 
 with main_tabs[5]:
+    with st.expander("Stop loss", expanded=False):
+        stop_loss_config = render_stop_loss()
+
+with main_tabs[6]:
+    with st.expander("Stop movel", expanded=False):
+        stop_movel_config = render_stop_movel()
+
+with main_tabs[7]:
+    with st.expander("Take profit", expanded=False):
+        take_profit_config = render_take_profit()
+
+with main_tabs[8]:
+    with st.expander("Trailing stop", expanded=False):
+        trailing_stop_config = render_trailing_stop()
+
+with main_tabs[9]:
+    with st.expander("Saidas parciais", expanded=False):
+        partial_exits_config = render_saidas_parciais()
+
+with main_tabs[10]:
     with st.expander("Filtro de vela", expanded=False):
         candle_filter_measure_type = st.selectbox(
             "Medir em",
@@ -452,27 +471,6 @@ with main_tabs[5]:
             key="candle_filter_max_body",
         )
 
-with main_tabs[6]:
-    with st.expander("Stop loss", expanded=False):
-        stop_loss_config = render_stop_loss()
-
-with main_tabs[7]:
-    with st.expander("Stop movel", expanded=False):
-        stop_movel_config = render_stop_movel()
-
-with main_tabs[8]:
-    with st.expander("Take profit", expanded=False):
-        take_profit_config = render_take_profit()
-
-with main_tabs[9]:
-    with st.expander("Trailing stop", expanded=False):
-        trailing_stop_config = render_trailing_stop()
-
-with main_tabs[10]:
-    with st.expander("Saidas parciais", expanded=False):
-        partial_exits_config = render_saidas_parciais()
-
-with main_tabs[11]:
     with st.expander("Tipo de ordens", expanded=False):
         distance_calculation_type = st.selectbox(
             "Tipo de calculo das distancias",
