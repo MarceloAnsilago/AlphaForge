@@ -640,6 +640,14 @@ def render_sinais_prontos() -> dict:
     band_channels_indicator = BAND_CHANNEL_INDICATOR_OPTIONS[0]
     band_channels_period = 20
     band_channels_deviation = 2.0
+    band_channels_signal_options = [
+        "Fechou fora",
+        "Fechou dentro e saiu",
+        "Fechou dentro e fechou fora",
+        "Fechou fora e voltou",
+        "Fechou fora e fechou dentro",
+        "Estando fora",
+    ]
 
     crossover_enabled = False
     crossover_fast_indicator = CROSSOVER_INDICATOR_OPTIONS[0]
@@ -656,21 +664,21 @@ def render_sinais_prontos() -> dict:
     oversold_level = 30
 
     with st.expander("Canais de bandas", expanded=False):
-        band_channels_signal = st.selectbox(
-            "Condicao",
-            options=[
-                "Nao usar",
-                "Fechou fora",
-                "Fechou dentro e saiu",
-                "Fechou dentro e fechou fora",
-                "Fechou fora e voltou",
-                "Fechou fora e fechou dentro",
-                "Estando fora",
-            ],
-            key="ready_band_channels_signal",
+        band_channels_enabled = (
+            st.radio(
+                "Usar sinal de canais de bandas?",
+                options=YES_NO_OPTIONS,
+                key="ready_band_channels_enabled",
+                horizontal=True,
+            )
+            == "Sim"
         )
-        band_channels_enabled = band_channels_signal != "Nao usar"
         if band_channels_enabled:
+            band_channels_signal = st.selectbox(
+                "Sinais",
+                options=band_channels_signal_options,
+                key="ready_band_channels_signal_option",
+            )
             indicator_col, period_col = st.columns(2)
             with indicator_col:
                 band_channels_indicator = st.selectbox(
@@ -696,7 +704,7 @@ def render_sinais_prontos() -> dict:
                     key="ready_band_channels_deviation",
                 )
             with signal_col:
-                st.caption(f"Condicao selecionada: {band_channels_signal}")
+                st.caption(f"Sinal selecionado: {band_channels_signal}")
 
     with st.expander("Cruzamentos", expanded=False):
         crossover_enabled = (

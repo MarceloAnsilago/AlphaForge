@@ -199,14 +199,13 @@ main_tabs = st.tabs(
         "3. Informacoes basicas da estrategia",
         "4. Horario",
         "5. Configuracao inicial",
-        "6. Tipo de ordens",
-        "7. Filtro de vela",
-        "8. Stop loss",
-        "9. Stop movel",
-        "10. Take profit",
-        "11. Trailing stop",
-        "12. Saidas parciais",
-        "13. Sinais prontos",
+        "6. Filtro de vela",
+        "7. Stop loss",
+        "8. Stop movel",
+        "9. Take profit",
+        "10. Trailing stop",
+        "11. Saidas parciais",
+        "12. Sinais prontos",
     ]
 )
 
@@ -408,6 +407,72 @@ with main_tabs[4]:
         )
 
 with main_tabs[5]:
+    with st.expander("Filtro de vela", expanded=False):
+        candle_filter_measure_type = st.selectbox(
+            "Medir em",
+            options=DISTANCE_CALCULATION_OPTIONS,
+            key="candle_filter_measure_type",
+        )
+        candle_filter_timeframe = st.selectbox(
+            "Tempo grafico",
+            options=PRIMARY_TIMEFRAME_OPTIONS,
+            format_func=_format_timeframe_label,
+            key="candle_filter_timeframe",
+        )
+        candle_filter_measure_label = (
+            "Em pontos" if candle_filter_measure_type == "Pontos" else "Em percentual"
+        )
+        candle_filter_measure_step = 1.0 if candle_filter_measure_type == "Pontos" else 0.1
+        candle_filter_min_size = st.number_input(
+            f"Tamanho minimo da vela ({candle_filter_measure_label})",
+            min_value=0.0,
+            value=0.0,
+            step=candle_filter_measure_step,
+            key="candle_filter_min_size",
+        )
+        candle_filter_max_size = st.number_input(
+            f"Tamanho maximo da vela ({candle_filter_measure_label})",
+            min_value=0.0,
+            value=0.0,
+            step=candle_filter_measure_step,
+            key="candle_filter_max_size",
+        )
+        candle_filter_min_body = st.number_input(
+            f"Minimo do corpo da vela ({candle_filter_measure_label})",
+            min_value=0.0,
+            value=0.0,
+            step=candle_filter_measure_step,
+            key="candle_filter_min_body",
+        )
+        candle_filter_max_body = st.number_input(
+            f"Maximo do corpo da vela ({candle_filter_measure_label})",
+            min_value=0.0,
+            value=0.0,
+            step=candle_filter_measure_step,
+            key="candle_filter_max_body",
+        )
+
+with main_tabs[6]:
+    with st.expander("Stop loss", expanded=False):
+        stop_loss_config = render_stop_loss()
+
+with main_tabs[7]:
+    with st.expander("Stop movel", expanded=False):
+        stop_movel_config = render_stop_movel()
+
+with main_tabs[8]:
+    with st.expander("Take profit", expanded=False):
+        take_profit_config = render_take_profit()
+
+with main_tabs[9]:
+    with st.expander("Trailing stop", expanded=False):
+        trailing_stop_config = render_trailing_stop()
+
+with main_tabs[10]:
+    with st.expander("Saidas parciais", expanded=False):
+        partial_exits_config = render_saidas_parciais()
+
+with main_tabs[11]:
     with st.expander("Tipo de ordens", expanded=False):
         distance_calculation_type = st.selectbox(
             "Tipo de calculo das distancias",
@@ -519,73 +584,6 @@ with main_tabs[5]:
                     key="exit_pending_expiration",
                 )
 
-with main_tabs[6]:
-    with st.expander("Filtro de vela", expanded=False):
-        candle_filter_measure_type = st.selectbox(
-            "Medir em",
-            options=DISTANCE_CALCULATION_OPTIONS,
-            key="candle_filter_measure_type",
-        )
-        candle_filter_timeframe = st.selectbox(
-            "Tempo grafico",
-            options=PRIMARY_TIMEFRAME_OPTIONS,
-            format_func=_format_timeframe_label,
-            key="candle_filter_timeframe",
-        )
-        candle_filter_measure_label = (
-            "Em pontos" if candle_filter_measure_type == "Pontos" else "Em percentual"
-        )
-        candle_filter_measure_step = 1.0 if candle_filter_measure_type == "Pontos" else 0.1
-        candle_filter_min_size = st.number_input(
-            f"Tamanho minimo da vela ({candle_filter_measure_label})",
-            min_value=0.0,
-            value=0.0,
-            step=candle_filter_measure_step,
-            key="candle_filter_min_size",
-        )
-        candle_filter_max_size = st.number_input(
-            f"Tamanho maximo da vela ({candle_filter_measure_label})",
-            min_value=0.0,
-            value=0.0,
-            step=candle_filter_measure_step,
-            key="candle_filter_max_size",
-        )
-        candle_filter_min_body = st.number_input(
-            f"Minimo do corpo da vela ({candle_filter_measure_label})",
-            min_value=0.0,
-            value=0.0,
-            step=candle_filter_measure_step,
-            key="candle_filter_min_body",
-        )
-        candle_filter_max_body = st.number_input(
-            f"Maximo do corpo da vela ({candle_filter_measure_label})",
-            min_value=0.0,
-            value=0.0,
-            step=candle_filter_measure_step,
-            key="candle_filter_max_body",
-        )
-
-with main_tabs[7]:
-    with st.expander("Stop loss", expanded=False):
-        stop_loss_config = render_stop_loss()
-
-with main_tabs[8]:
-    with st.expander("Stop movel", expanded=False):
-        stop_movel_config = render_stop_movel()
-
-with main_tabs[9]:
-    with st.expander("Take profit", expanded=False):
-        take_profit_config = render_take_profit()
-
-with main_tabs[10]:
-    with st.expander("Trailing stop", expanded=False):
-        trailing_stop_config = render_trailing_stop()
-
-with main_tabs[11]:
-    with st.expander("Saidas parciais", expanded=False):
-        partial_exits_config = render_saidas_parciais()
-
-with main_tabs[12]:
     ready_signals_config = render_sinais_prontos()
 
 risk_management = {
