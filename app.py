@@ -204,7 +204,7 @@ main_tabs = st.tabs(
         "8. Take profit",
         "9. Trailing stop",
         "10. Saidas parciais",
-        "11. Sinais prontos",
+        "11. Sinais",
     ]
 )
 
