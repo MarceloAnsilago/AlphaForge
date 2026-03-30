@@ -16,7 +16,7 @@ from config import (
     TARGET_MARKET_OPTIONS,
     YES_NO_OPTIONS,
 )
-from services.mt5_service import connect_terminal, load_market_data
+from services.mt5_service import connect_terminal, load_market_data, load_terminal_symbols
 from ui.components import (
     render_ajustes_finais,
     render_saidas_parciais,
@@ -213,11 +213,23 @@ def _render_hour_minute_input(
 def render_connection_tab(tab: Any, state: dict[str, Any]) -> None:
     with tab:
         with st.expander("Conexao MT5", expanded=False):
-            if st.button("Conectar ao MT5", use_container_width=True):
+            connect_col, load_symbols_col = st.columns(2)
+
+            if connect_col.button("Conectar ao MT5", use_container_width=True):
                 connection_result = connect_terminal()
                 state["mt5_connected"] = connection_result["connected"]
                 state["mt5_status"] = connection_result["status"]
-                state["symbols"] = connection_result["symbols"]
+                state["symbols"] = []
+                state["symbols_status"] = ""
+
+            if load_symbols_col.button(
+                "Carregar simbolos",
+                use_container_width=True,
+                disabled=not state["mt5_connected"],
+            ):
+                symbols_result = load_terminal_symbols()
+                state["symbols"] = symbols_result["symbols"]
+                state["symbols_status"] = symbols_result["status"]
 
             if state["mt5_connected"]:
                 st.success("Conexao ativa com o MetaTrader 5.")
@@ -225,6 +237,15 @@ def render_connection_tab(tab: Any, state: dict[str, Any]) -> None:
                 st.error(state["mt5_status"])
             else:
                 st.info("Clique no botao para conectar ao MetaTrader 5.")
+
+            if state["mt5_connected"] and not state["symbols"]:
+                st.info("Depois de conectar, clique em 'Carregar simbolos' para disponibilizar os ativos.")
+
+            if state["symbols_status"]:
+                if state["symbols"]:
+                    st.caption(state["symbols_status"])
+                else:
+                    st.warning(state["symbols_status"])
 
 
 def render_market_data_tab(tab: Any, state: dict[str, Any]) -> dict[str, Any]:

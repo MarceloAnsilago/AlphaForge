@@ -4,8 +4,10 @@ from typing import Any
 
 import streamlit as st
 
+from builders.rules_builder import build_entry_rules, build_exit_rules
 from builders.settings_builder import build_settings
 from builders.strategy_builder import build_strategy_payload
+from core.backtest_engine import run_backtest
 from state import get_state
 from ui.tabs import (
     apply_page_style,
@@ -33,6 +35,29 @@ def _build_risk_management(
         "stop": stop_loss_config["target"],
         "take": take_profit_config["target"],
     }
+
+
+def _render_backtest(backtest_result: dict[str, Any]) -> None:
+    summary = backtest_result["summary"]
+    metric_columns = st.columns(5)
+    metric_columns[0].metric("Trades", int(summary["total_trades"]))
+    metric_columns[1].metric("Win rate", f"{summary['win_rate']:.1f}%")
+    metric_columns[2].metric("Lucro liquido", f"{summary['net_profit']:.2f}")
+    metric_columns[3].metric("Lucro bruto", f"{summary['gross_profit']:.2f}")
+    metric_columns[4].metric("Perda bruta", f"{summary['gross_loss']:.2f}")
+
+    if backtest_result["ambiguous_entries"] > 0:
+        st.warning(
+            "Alguns sinais de entrada foram ignorados por ambiguidade de direcao: "
+            f"{backtest_result['ambiguous_entries']} candle(s)."
+        )
+
+    trades = backtest_result["trades"]
+    if trades.empty:
+        st.info("Nenhuma operacao foi gerada pelo backtest simples com os candles carregados.")
+        return
+
+    st.dataframe(trades, use_container_width=True)
 
 
 def render_app() -> None:
@@ -82,6 +107,8 @@ def render_app() -> None:
     show_clicked = button_col_2.button("Exibir JSON da Estrategia", use_container_width=True)
 
     if save_clicked or show_clicked:
+        entry_rules = build_entry_rules(signal_config["ready_signals"])
+        exit_rules = build_exit_rules(signal_config["ready_signals"])
         settings = build_settings(
             operation_config=operation_config,
             time_config=time_config,
@@ -101,6 +128,8 @@ def render_app() -> None:
             period_mode=market_config["period_mode"],
             custom_start_date=market_config["custom_start_date"],
             custom_end_date=market_config["custom_end_date"],
+            entry_rules=entry_rules,
+            exit_rules=exit_rules,
             risk_management=_build_risk_management(stop_loss_config, take_profit_config),
         )
 
@@ -109,6 +138,14 @@ def render_app() -> None:
             st.success("Estrutura da estrategia salva na sessao atual.")
 
         st.json(payload)
+
+        market_data = state["market_data"]
+        if not market_data.empty:
+            with st.expander("Backtest simples", expanded=True):
+                backtest_result = run_backtest(payload, market_data)
+                _render_backtest(backtest_result)
+        else:
+            st.info("Carregue candles do MT5 para executar o backtest simples.")
 
 
 render_app()

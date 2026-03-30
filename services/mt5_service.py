@@ -19,7 +19,16 @@ def connect_terminal() -> dict[str, Any]:
     return {
         "connected": connected,
         "status": "Conectado ao MetaTrader 5." if connected else get_last_error(),
-        "symbols": get_symbols() if connected else [],
+    }
+
+
+def load_terminal_symbols() -> dict[str, Any]:
+    symbols = get_symbols()
+    error = get_last_error()
+    return {
+        "symbols": symbols,
+        "status": f"{len(symbols)} simbolo(s) carregado(s)." if symbols else (error or "Nenhum simbolo encontrado."),
+        "success": bool(symbols),
     }
 
 

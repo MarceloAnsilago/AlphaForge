@@ -10,6 +10,7 @@ def _build_default_state() -> dict[str, Any]:
     return {
         "mt5_connected": False,
         "mt5_status": "",
+        "symbols_status": "",
         "symbols": [],
         "market_data": pd.DataFrame(),
         "market_query": None,

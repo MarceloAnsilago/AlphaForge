@@ -1,22 +1,31 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 
 @dataclass(slots=True)
-class Operand:
-    type: str
+class RuleSource:
+    source_type: str
     value: str | float
-    period: int | None = None
+    label: str | None = None
+    candle_offset: int = 0
+    indicator_name: str | None = None
+    indicator_output: str | None = None
+    parameters: dict[str, Any] = field(default_factory=dict)
+    slot_number: int | None = None
 
 
 @dataclass(slots=True)
 class Rule:
-    left: Operand
+    source_a: RuleSource
     operator: str
-    right: Operand
+    source_b: RuleSource
+    source_b_type: str
     candle_offset: int
+    connector: str = "SE"
+    group_id: str = "default"
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -45,20 +54,53 @@ class StrategyStructure:
         return asdict(self)
 
 
-def _build_operand(payload: dict[str, Any]) -> Operand:
-    return Operand(
-        type=payload["type"],
+def _build_rule_source(payload: dict[str, Any]) -> RuleSource:
+    return RuleSource(
+        source_type=payload["source_type"],
         value=payload["value"],
-        period=payload.get("period"),
+        label=payload.get("label"),
+        candle_offset=int(payload.get("candle_offset", 0)),
+        indicator_name=payload.get("indicator_name"),
+        indicator_output=payload.get("indicator_output"),
+        parameters=payload.get("parameters", {}),
+        slot_number=payload.get("slot_number"),
     )
 
 
 def _build_rule(payload: dict[str, Any]) -> Rule:
+    if "left" in payload and "right" in payload:
+        left_source = {
+            "source_type": payload["left"]["type"],
+            "value": payload["left"]["value"],
+            "candle_offset": int(payload.get("candle_offset", 0)),
+            "parameters": {"period": payload["left"].get("period")},
+        }
+        right_source = {
+            "source_type": payload["right"]["type"],
+            "value": payload["right"]["value"],
+            "candle_offset": int(payload.get("candle_offset", 0)),
+            "parameters": {"period": payload["right"].get("period")},
+        }
+        payload = {
+            "source_a": left_source,
+            "operator": payload["operator"],
+            "source_b": right_source,
+            "source_b_type": right_source["source_type"],
+            "candle_offset": int(payload["candle_offset"]),
+            "connector": "SE",
+            "group_id": "legacy",
+            "metadata": {"legacy_rule": True},
+        }
+
     return Rule(
-        left=_build_operand(payload["left"]),
+        source_a=_build_rule_source(payload["source_a"]),
         operator=payload["operator"],
-        right=_build_operand(payload["right"]),
-        candle_offset=payload["candle_offset"],
+        source_b=_build_rule_source(payload["source_b"]),
+        source_b_type=payload.get("source_b_type", payload["source_b"]["source_type"]),
+        candle_offset=int(payload.get("candle_offset", payload["source_a"].get("candle_offset", 0))),
+        connector=payload.get("connector", "SE"),
+        group_id=payload.get("group_id", "default"),
+        metadata=payload.get("metadata", {}),
     )
 
 

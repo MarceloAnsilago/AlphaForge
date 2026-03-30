@@ -48,6 +48,8 @@ def build_strategy_payload(
     period_mode: str,
     custom_start_date: date | None,
     custom_end_date: date | None,
+    entry_rules: list[dict[str, Any]],
+    exit_rules: list[dict[str, Any]],
     risk_management: dict[str, Any],
 ) -> dict[str, Any]:
     market_context: dict[str, Any] = {
@@ -68,7 +70,7 @@ def build_strategy_payload(
         direction=direction,
         settings=settings,
         market=market_context,
-        entry_rules=[],
-        exit_rules=[],
+        entry_rules=entry_rules,
+        exit_rules=exit_rules,
         risk_management=risk_management,
     )
