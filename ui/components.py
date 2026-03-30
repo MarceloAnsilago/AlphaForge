@@ -59,6 +59,10 @@ VOLUME_TYPE_OPTIONS = [
     "Volume de tick",
     "Volume Real",
 ]
+STOCHASTIC_TYPE_OPTIONS = [
+    "Minimo/Maximo",
+    "Fechamento/Fechamento",
+]
 READY_SIGNAL_INDICATOR_OPTIONS = [
     "Nao usar",
     "Externo",
@@ -471,6 +475,52 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
             "deviation": float(deviation),
         }
 
+    if selected_indicator == "Estocastico":
+        k_period_col, d_period_col = st.columns(2)
+        with k_period_col:
+            k_period = st.number_input(
+                "K Periodo",
+                min_value=1,
+                value=5,
+                step=1,
+                key="ready_signal_indicator_1_stochastic_k_period",
+            )
+        with d_period_col:
+            d_period = st.number_input(
+                "D Periodo",
+                min_value=1,
+                value=3,
+                step=1,
+                key="ready_signal_indicator_1_stochastic_d_period",
+            )
+        slowing_col, ma_type_col = st.columns(2)
+        with slowing_col:
+            slowing = st.number_input(
+                "Lentidao",
+                min_value=1,
+                value=3,
+                step=1,
+                key="ready_signal_indicator_1_stochastic_slowing",
+            )
+        with ma_type_col:
+            ma_type = st.selectbox(
+                "Tipo de media",
+                options=MA_TYPE_OPTIONS,
+                key="ready_signal_indicator_1_stochastic_ma_type",
+            )
+        stochastic_type = st.selectbox(
+            "Tipo estocastico",
+            options=STOCHASTIC_TYPE_OPTIONS,
+            key="ready_signal_indicator_1_stochastic_type",
+        )
+        return {
+            "k_period": int(k_period),
+            "d_period": int(d_period),
+            "slowing": int(slowing),
+            "ma_type": ma_type,
+            "stochastic_type": stochastic_type,
+        }
+
     if selected_indicator == "RSI (Relative Strength Index)":
         period_col, price_mode_col = st.columns(2)
         with period_col:
@@ -618,6 +668,520 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
         return {
             "period": int(period),
             "volume_type": volume_type,
+        }
+
+    if selected_indicator == "Vidya":
+        cmo_period_col, ema_period_col = st.columns(2)
+        with cmo_period_col:
+            cmo_period = st.number_input(
+                "Periodo CMO",
+                min_value=1,
+                value=9,
+                step=1,
+                key="ready_signal_indicator_1_vidya_cmo_period",
+            )
+        with ema_period_col:
+            ema_period = st.number_input(
+                "Periodo EMA",
+                min_value=1,
+                value=12,
+                step=1,
+                key="ready_signal_indicator_1_vidya_ema_period",
+            )
+        displacement_col, price_mode_col = st.columns(2)
+        with displacement_col:
+            displacement = st.number_input(
+                "Deslocamento",
+                value=0,
+                step=1,
+                key="ready_signal_indicator_1_vidya_shift",
+            )
+        with price_mode_col:
+            price_mode = st.selectbox(
+                "Modo de preco",
+                options=PRICE_MODE_OPTIONS,
+                key="ready_signal_indicator_1_vidya_price_mode",
+            )
+        return {
+            "cmo_period": int(cmo_period),
+            "ema_period": int(ema_period),
+            "displacement": int(displacement),
+            "price_mode": price_mode,
+        }
+
+    if selected_indicator == "DEMA":
+        period_col, displacement_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=14,
+                step=1,
+                key="ready_signal_indicator_1_dema_period",
+            )
+        with displacement_col:
+            displacement = st.number_input(
+                "Deslocamento",
+                value=0,
+                step=1,
+                key="ready_signal_indicator_1_dema_shift",
+            )
+        price_mode = st.selectbox(
+            "Modo de preco",
+            options=PRICE_MODE_OPTIONS,
+            key="ready_signal_indicator_1_dema_price_mode",
+        )
+        return {
+            "period": int(period),
+            "displacement": int(displacement),
+            "price_mode": price_mode,
+        }
+
+    if selected_indicator == "TEMA":
+        period_col, displacement_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=14,
+                step=1,
+                key="ready_signal_indicator_1_tema_period",
+            )
+        with displacement_col:
+            displacement = st.number_input(
+                "Deslocamento",
+                value=0,
+                step=1,
+                key="ready_signal_indicator_1_tema_shift",
+            )
+        price_mode = st.selectbox(
+            "Modo de preco",
+            options=PRICE_MODE_OPTIONS,
+            key="ready_signal_indicator_1_tema_price_mode",
+        )
+        return {
+            "period": int(period),
+            "displacement": int(displacement),
+            "price_mode": price_mode,
+        }
+
+    if selected_indicator == "FRAMA":
+        period_col, displacement_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=14,
+                step=1,
+                key="ready_signal_indicator_1_frama_period",
+            )
+        with displacement_col:
+            displacement = st.number_input(
+                "Deslocamento",
+                value=0,
+                step=1,
+                key="ready_signal_indicator_1_frama_shift",
+            )
+        price_mode = st.selectbox(
+            "Modo de preco",
+            options=PRICE_MODE_OPTIONS,
+            key="ready_signal_indicator_1_frama_price_mode",
+        )
+        return {
+            "period": int(period),
+            "displacement": int(displacement),
+            "price_mode": price_mode,
+        }
+
+    if selected_indicator == "TRIX":
+        period_col, price_mode_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=14,
+                step=1,
+                key="ready_signal_indicator_1_trix_period",
+            )
+        with price_mode_col:
+            price_mode = st.selectbox(
+                "Modo de preco",
+                options=PRICE_MODE_OPTIONS,
+                key="ready_signal_indicator_1_trix_price_mode",
+            )
+        return {
+            "period": int(period),
+            "price_mode": price_mode,
+        }
+
+    if selected_indicator == "Bears Power":
+        period = st.number_input(
+            "Periodo",
+            min_value=1,
+            value=13,
+            step=1,
+            key="ready_signal_indicator_1_bears_power_period",
+        )
+        return {
+            "period": int(period),
+        }
+
+    if selected_indicator == "Bulls Power":
+        period = st.number_input(
+            "Periodo",
+            min_value=1,
+            value=13,
+            step=1,
+            key="ready_signal_indicator_1_bulls_power_period",
+        )
+        return {
+            "period": int(period),
+        }
+
+    if selected_indicator == "Chaikin Oscilador":
+        fast_ma_col, slow_ma_col = st.columns(2)
+        with fast_ma_col:
+            fast_ma = st.number_input(
+                "Media rapida",
+                min_value=1,
+                value=3,
+                step=1,
+                key="ready_signal_indicator_1_chaikin_fast_ma",
+            )
+        with slow_ma_col:
+            slow_ma = st.number_input(
+                "Media lenta",
+                min_value=1,
+                value=10,
+                step=1,
+                key="ready_signal_indicator_1_chaikin_slow_ma",
+            )
+        ma_type_col, volume_type_col = st.columns(2)
+        with ma_type_col:
+            ma_type = st.selectbox(
+                "Tipo de media",
+                options=MA_TYPE_OPTIONS,
+                key="ready_signal_indicator_1_chaikin_ma_type",
+            )
+        with volume_type_col:
+            volume_type = st.selectbox(
+                "Volume",
+                options=VOLUME_TYPE_OPTIONS,
+                key="ready_signal_indicator_1_chaikin_volume_type",
+            )
+        return {
+            "fast_ma": int(fast_ma),
+            "slow_ma": int(slow_ma),
+            "ma_type": ma_type,
+            "volume_type": volume_type,
+        }
+
+    if selected_indicator == "Accelerator Oscillator":
+        st.caption("Accelerator Oscillator nao requer parametros.")
+        return {}
+
+    if selected_indicator == "Awesome Oscillator":
+        st.caption("Awesome Oscillator nao requer parametros.")
+        return {}
+
+    if selected_indicator == "CCI (Commodity Channel Index)":
+        period_col, price_mode_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=14,
+                step=1,
+                key="ready_signal_indicator_1_cci_period",
+            )
+        with price_mode_col:
+            price_mode = st.selectbox(
+                "Modo de preco",
+                options=PRICE_MODE_OPTIONS,
+                key="ready_signal_indicator_1_cci_price_mode",
+            )
+        return {
+            "period": int(period),
+            "price_mode": price_mode,
+        }
+
+    if selected_indicator == "DeMarker":
+        period = st.number_input(
+            "Periodo",
+            min_value=1,
+            value=14,
+            step=1,
+            key="ready_signal_indicator_1_demarker_period",
+        )
+        return {
+            "period": int(period),
+        }
+
+    if selected_indicator == "Alligator":
+        jaw_period_col, jaw_shift_col = st.columns(2)
+        with jaw_period_col:
+            jaw_period = st.number_input(
+                "Periodo mandibula",
+                min_value=1,
+                value=13,
+                step=1,
+                key="ready_signal_indicator_1_alligator_jaw_period",
+            )
+        with jaw_shift_col:
+            jaw_shift = st.number_input(
+                "Deslocamento mandibula",
+                value=8,
+                step=1,
+                key="ready_signal_indicator_1_alligator_jaw_shift",
+            )
+        teeth_period_col, teeth_shift_col = st.columns(2)
+        with teeth_period_col:
+            teeth_period = st.number_input(
+                "Periodo dente",
+                min_value=1,
+                value=8,
+                step=1,
+                key="ready_signal_indicator_1_alligator_teeth_period",
+            )
+        with teeth_shift_col:
+            teeth_shift = st.number_input(
+                "Deslocamento dente",
+                value=5,
+                step=1,
+                key="ready_signal_indicator_1_alligator_teeth_shift",
+            )
+        lips_period_col, lips_shift_col = st.columns(2)
+        with lips_period_col:
+            lips_period = st.number_input(
+                "Periodo boca",
+                min_value=1,
+                value=5,
+                step=1,
+                key="ready_signal_indicator_1_alligator_lips_period",
+            )
+        with lips_shift_col:
+            lips_shift = st.number_input(
+                "Deslocamento boca",
+                value=3,
+                step=1,
+                key="ready_signal_indicator_1_alligator_lips_shift",
+            )
+        ma_type_col, price_mode_col = st.columns(2)
+        with ma_type_col:
+            ma_type = st.selectbox(
+                "Tipo de media",
+                options=MA_TYPE_OPTIONS,
+                key="ready_signal_indicator_1_alligator_ma_type",
+            )
+        with price_mode_col:
+            price_mode = st.selectbox(
+                "Modo de preco",
+                options=PRICE_MODE_OPTIONS,
+                key="ready_signal_indicator_1_alligator_price_mode",
+            )
+        return {
+            "jaw_period": int(jaw_period),
+            "jaw_shift": int(jaw_shift),
+            "teeth_period": int(teeth_period),
+            "teeth_shift": int(teeth_shift),
+            "lips_period": int(lips_period),
+            "lips_shift": int(lips_shift),
+            "ma_type": ma_type,
+            "price_mode": price_mode,
+        }
+
+    if selected_indicator == "Nuvem de Ichimoku":
+        tenkan_col, kijun_col = st.columns(2)
+        with tenkan_col:
+            tenkan_sen = st.number_input(
+                "Tenkan-sen",
+                min_value=1,
+                value=9,
+                step=1,
+                key="ready_signal_indicator_1_ichimoku_tenkan_sen",
+            )
+        with kijun_col:
+            kijun_sen = st.number_input(
+                "Kijun-sen",
+                min_value=1,
+                value=26,
+                step=1,
+                key="ready_signal_indicator_1_ichimoku_kijun_sen",
+            )
+        senkou_span_b = st.number_input(
+            "Senkou Span B",
+            min_value=1,
+            value=52,
+            step=1,
+            key="ready_signal_indicator_1_ichimoku_senkou_span_b",
+        )
+        return {
+            "tenkan_sen": int(tenkan_sen),
+            "kijun_sen": int(kijun_sen),
+            "senkou_span_b": int(senkou_span_b),
+        }
+
+    if selected_indicator == "ADX (Average Directional Index)":
+        period = st.number_input(
+            "Periodo",
+            min_value=1,
+            value=14,
+            step=1,
+            key="ready_signal_indicator_1_adx_period",
+        )
+        return {
+            "period": int(period),
+        }
+
+    if selected_indicator == "ADX Welles Wilder":
+        period = st.number_input(
+            "Periodo",
+            min_value=1,
+            value=14,
+            step=1,
+            key="ready_signal_indicator_1_adx_wilder_period",
+        )
+        return {
+            "period": int(period),
+        }
+
+    if selected_indicator == "Gator Oscillator":
+        jaw_period_col, jaw_shift_col = st.columns(2)
+        with jaw_period_col:
+            jaw_period = st.number_input(
+                "Periodo mandibula",
+                min_value=1,
+                value=13,
+                step=1,
+                key="ready_signal_indicator_1_gator_jaw_period",
+            )
+        with jaw_shift_col:
+            jaw_shift = st.number_input(
+                "Deslocamento mandibula",
+                value=8,
+                step=1,
+                key="ready_signal_indicator_1_gator_jaw_shift",
+            )
+        teeth_period_col, teeth_shift_col = st.columns(2)
+        with teeth_period_col:
+            teeth_period = st.number_input(
+                "Periodo dente",
+                min_value=1,
+                value=8,
+                step=1,
+                key="ready_signal_indicator_1_gator_teeth_period",
+            )
+        with teeth_shift_col:
+            teeth_shift = st.number_input(
+                "Deslocamento dente",
+                value=5,
+                step=1,
+                key="ready_signal_indicator_1_gator_teeth_shift",
+            )
+        lips_period_col, lips_shift_col = st.columns(2)
+        with lips_period_col:
+            lips_period = st.number_input(
+                "Periodo boca",
+                min_value=1,
+                value=5,
+                step=1,
+                key="ready_signal_indicator_1_gator_lips_period",
+            )
+        with lips_shift_col:
+            lips_shift = st.number_input(
+                "Deslocamento boca",
+                value=3,
+                step=1,
+                key="ready_signal_indicator_1_gator_lips_shift",
+            )
+        ma_type_col, price_mode_col = st.columns(2)
+        with ma_type_col:
+            ma_type = st.selectbox(
+                "Tipo de media",
+                options=MA_TYPE_OPTIONS,
+                key="ready_signal_indicator_1_gator_ma_type",
+            )
+        with price_mode_col:
+            price_mode = st.selectbox(
+                "Modo de preco",
+                options=PRICE_MODE_OPTIONS,
+                key="ready_signal_indicator_1_gator_price_mode",
+            )
+        return {
+            "jaw_period": int(jaw_period),
+            "jaw_shift": int(jaw_shift),
+            "teeth_period": int(teeth_period),
+            "teeth_shift": int(teeth_shift),
+            "lips_period": int(lips_period),
+            "lips_shift": int(lips_shift),
+            "ma_type": ma_type,
+            "price_mode": price_mode,
+        }
+
+    if selected_indicator == "Williams %R (WPR)":
+        period_col, deviation_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=14,
+                step=1,
+                key="ready_signal_indicator_1_wpr_period",
+            )
+        with deviation_col:
+            deviation = st.number_input(
+                "Desvios",
+                min_value=0.0,
+                value=2.0,
+                step=0.1,
+                key="ready_signal_indicator_1_wpr_deviation",
+            )
+        return {
+            "period": int(period),
+            "deviation": float(deviation),
+        }
+
+    if selected_indicator == "Market Facilitation Index":
+        volume_type = st.selectbox(
+            "Volume",
+            options=VOLUME_TYPE_OPTIONS,
+            key="ready_signal_indicator_1_market_facilitation_volume_type",
+        )
+        return {
+            "volume_type": volume_type,
+        }
+
+    if selected_indicator == "Momentum":
+        period_col, price_mode_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo medio",
+                min_value=1,
+                value=14,
+                step=1,
+                key="ready_signal_indicator_1_momentum_period",
+            )
+        with price_mode_col:
+            price_mode = st.selectbox(
+                "Modo de preco",
+                options=PRICE_MODE_OPTIONS,
+                key="ready_signal_indicator_1_momentum_price_mode",
+            )
+        return {
+            "period": int(period),
+            "price_mode": price_mode,
+        }
+
+    if selected_indicator == "RVI (Relative Vigor Index)":
+        period = st.number_input(
+            "Periodo",
+            min_value=1,
+            value=14,
+            step=1,
+            key="ready_signal_indicator_1_rvi_period",
+        )
+        return {
+            "period": int(period),
         }
 
     return {}
