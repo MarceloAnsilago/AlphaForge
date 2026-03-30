@@ -35,6 +35,29 @@ _TIMEFRAME_MAP = {
     "W1": "TIMEFRAME_W1",
     "MN1": "TIMEFRAME_MN1",
 }
+_TIMEFRAME_MINUTES = {
+    "M1": 1,
+    "M2": 2,
+    "M3": 3,
+    "M4": 4,
+    "M5": 5,
+    "M6": 6,
+    "M10": 10,
+    "M12": 12,
+    "M15": 15,
+    "M30": 30,
+    "H1": 60,
+    "H2": 120,
+    "H3": 180,
+    "H4": 240,
+    "H6": 360,
+    "H8": 480,
+    "H12": 720,
+    "D1": 1440,
+    "W1": 10080,
+    "MN1": 43200,
+}
+_MAX_RANGE_BARS = 20000
 
 
 def _set_error(message: str) -> None:
@@ -88,12 +111,63 @@ def _ensure_symbol_selected(symbol: str) -> bool:
     return True
 
 
-def _normalize_utc_timestamp(value: datetime) -> int:
+def _normalize_utc_datetime(value: datetime) -> datetime:
     if value.tzinfo is None:
         value = value.replace(tzinfo=timezone.utc)
     else:
         value = value.astimezone(timezone.utc)
-    return int(value.timestamp())
+    return value.replace(microsecond=0)
+
+
+def _estimate_chunk_span(timeframe: str) -> timedelta:
+    timeframe_minutes = _TIMEFRAME_MINUTES.get(timeframe, 1440)
+    chunk_days = max(1, int((_MAX_RANGE_BARS * timeframe_minutes) / 1440))
+    return timedelta(days=chunk_days)
+
+
+def _copy_rates_range_chunked(
+    symbol: str,
+    timeframe: str,
+    timeframe_constant: Any,
+    start: datetime,
+    end: datetime,
+) -> pd.DataFrame:
+    chunk_span = _estimate_chunk_span(timeframe)
+    chunk_start = start
+    chunk_frames: list[pd.DataFrame] = []
+
+    while chunk_start < end:
+        chunk_end = min(chunk_start + chunk_span, end)
+        chunk_rates = mt5.copy_rates_range(
+            symbol,
+            timeframe_constant,
+            chunk_start,
+            chunk_end,
+        )
+        error = mt5.last_error()
+
+        if chunk_rates is None:
+            if error[0] == -2 and chunk_span > timedelta(days=1):
+                chunk_span = max(timedelta(days=1), timedelta(seconds=int(chunk_span.total_seconds() / 2)))
+                continue
+            _set_error(
+                "Nao foi possivel carregar candles. "
+                "Verifique a conexao com o MT5 e se o ativo esta disponivel. "
+                f"Detalhes: {error}"
+            )
+            return pd.DataFrame()
+
+        chunk_frame = pd.DataFrame(chunk_rates)
+        if not chunk_frame.empty:
+            chunk_frames.append(chunk_frame)
+
+        chunk_start = chunk_end
+
+    if not chunk_frames:
+        return pd.DataFrame()
+
+    dataframe = pd.concat(chunk_frames, ignore_index=True)
+    return dataframe.drop_duplicates(subset=["time"]).sort_values("time").reset_index(drop=True)
 
 
 def initialize_mt5() -> bool:
@@ -186,18 +260,31 @@ def get_candles_by_range(
     if end is not None and end.tzinfo is None:
         end = end.replace(tzinfo=timezone.utc)
 
+    dataframe = pd.DataFrame()
     if start is not None and end is not None:
         rates = mt5.copy_rates_range(
             symbol,
             timeframe_constant,
-            _normalize_utc_timestamp(start),
-            _normalize_utc_timestamp(end),
+            _normalize_utc_datetime(start),
+            _normalize_utc_datetime(end),
         )
+        if rates is None and mt5.last_error()[0] == -2:
+            dataframe = _copy_rates_range_chunked(
+                symbol,
+                timeframe,
+                timeframe_constant,
+                _normalize_utc_datetime(start),
+                _normalize_utc_datetime(end),
+            )
+        elif rates is not None:
+            dataframe = pd.DataFrame(rates)
     else:
         effective_bars = bars or 500
         rates = mt5.copy_rates_from_pos(symbol, timeframe_constant, 0, effective_bars)
+        if rates is not None:
+            dataframe = pd.DataFrame(rates)
 
-    if rates is None:
+    if rates is None and dataframe.empty:
         error = mt5.last_error()
         _set_error(
             "Nao foi possivel carregar candles. "
@@ -206,7 +293,6 @@ def get_candles_by_range(
         )
         return pd.DataFrame()
 
-    dataframe = pd.DataFrame(rates)
     if dataframe.empty:
         _set_error("Nenhum candle foi retornado pelo MetaTrader 5 para os parametros informados.")
         return dataframe

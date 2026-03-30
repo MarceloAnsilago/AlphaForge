@@ -279,13 +279,14 @@ def render_market_data_tab(tab: Any, state: dict[str, Any]) -> dict[str, Any]:
                             "Selecione um tempo grafico principal diferente de Corrente para carregar os dados de mercado."
                         )
                     else:
-                        market_result = load_market_data(
-                            selected_symbol,
-                            effective_market_timeframe,
-                            period_mode,
-                            custom_start_date,
-                            custom_end_date,
-                        )
+                        with st.spinner("Baixando candles do MT5..."):
+                            market_result = load_market_data(
+                                selected_symbol,
+                                effective_market_timeframe,
+                                period_mode,
+                                custom_start_date,
+                                custom_end_date,
+                            )
                         if market_result["query"] is None and market_result["error"]:
                             st.error(market_result["error"])
                         else:
