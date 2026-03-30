@@ -305,7 +305,7 @@ def _render_signal_rule_row(
         st.session_state[candle_b_key] = 0
 
     command_col, source_a_col, candle_a_col, operator_col, source_b_col, candle_b_col = st.columns(
-        [1.0, 2.5, 1.7, 2.2, 2.5, 1.7]
+        [1.35, 2.35, 1.6, 2.1, 2.35, 1.6]
     )
 
     with command_col:
@@ -2239,7 +2239,7 @@ def render_sinais_prontos() -> dict:
 
         with st.container(border=True):
             header_col_1, header_col_2, header_col_3, header_col_4, header_col_5, header_col_6 = st.columns(
-                [1.0, 2.5, 1.7, 2.2, 2.5, 1.7]
+                [1.35, 2.35, 1.6, 2.1, 2.35, 1.6]
             )
             header_col_1.markdown("**Comando logico**")
             header_col_2.markdown("**Fonte A**")

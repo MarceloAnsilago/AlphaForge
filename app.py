@@ -161,6 +161,23 @@ def _apply_page_style() -> None:
                 font-size: 0.86rem;
                 margin-bottom: 0.85rem;
             }
+
+            [data-baseweb="select"] > div {
+                min-height: 2.45rem;
+                padding-top: 0.1rem;
+                padding-bottom: 0.1rem;
+            }
+
+            [data-baseweb="select"] span,
+            [data-baseweb="select"] input,
+            [data-baseweb="select"] div {
+                font-size: 0.82rem !important;
+            }
+
+            [role="listbox"] [role="option"] {
+                font-size: 0.82rem !important;
+                line-height: 1.2;
+            }
         </style>
         """,
         unsafe_allow_html=True,
