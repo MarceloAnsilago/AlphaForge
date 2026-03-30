@@ -40,6 +40,51 @@ STOP_PRICE_REFERENCE_OPTIONS = ["Maxima", "Minima", "Abertura", "Fechamento"]
 BAND_CHANNEL_INDICATOR_OPTIONS = ["BBANDS"]
 CROSSOVER_INDICATOR_OPTIONS = ["SMA", "EMA"]
 OVERBOUGHT_OVERSOLD_INDICATOR_OPTIONS = ["RSI", "CCI"]
+READY_SIGNAL_INDICATOR_OPTIONS = [
+    "Nao usar",
+    "Externo",
+    "Keltner",
+    "Donchian",
+    "Regressao",
+    "Afastamento da media",
+    "Desvio Medio",
+    "Canal ATR",
+    "Media Movel",
+    "Bandas de Bollinger",
+    "MACD",
+    "Envelopes",
+    "Estocastico",
+    "RSI (Relative Strength Index)",
+    "Desvio Padrao",
+    "Volume",
+    "ATR (Average True Range)",
+    "Parabolic SAR",
+    "Fractal",
+    "OBV (On Balance Volume)",
+    "Acumulacao/Distribuicao (A/D)",
+    "MFI (Money Flow Index)",
+    "Vidya",
+    "DEMA",
+    "TEMA",
+    "FRAMA",
+    "TRIX",
+    "Bears Power",
+    "Bulls Power",
+    "Chaikin Oscilador",
+    "Accelerator Oscillator",
+    "Awesome Oscillator",
+    "CCI (Commodity Channel Index)",
+    "DeMarker",
+    "Alligator",
+    "Nuvem de Ichimoku",
+    "ADX (Average Directional Index)",
+    "ADX Welles Wilder",
+    "Gator Oscillator",
+    "Williams %R (WPR)",
+    "Market Facilitation Index",
+    "Momentum",
+    "RVI (Relative Vigor Index)",
+]
 
 
 def _format_distance_type(value: str) -> str:
@@ -635,6 +680,7 @@ def render_saidas_parciais() -> dict:
 
 
 def render_sinais_prontos() -> dict:
+    signal_indicator_1 = READY_SIGNAL_INDICATOR_OPTIONS[0]
     band_channels_signal = "Nao usar"
     band_channels_enabled = False
     band_channels_indicator = BAND_CHANNEL_INDICATOR_OPTIONS[0]
@@ -810,7 +856,17 @@ def render_sinais_prontos() -> dict:
                 )
             st.caption(f"Condicao selecionada: {overbought_oversold_signal}")
 
+    with st.expander("Configurar sinais", expanded=False):
+        signal_indicator_1 = st.selectbox(
+            "Indicador 1",
+            options=READY_SIGNAL_INDICATOR_OPTIONS,
+            key="ready_signal_indicator_1",
+        )
+
     return {
+        "signal_settings": {
+            "indicator_1": signal_indicator_1,
+        },
         "band_channels": {
             "enabled": band_channels_enabled,
             "indicator": band_channels_indicator,
