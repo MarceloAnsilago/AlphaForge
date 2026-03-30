@@ -76,6 +76,91 @@ def _apply_page_style() -> None:
             [data-testid="stTabs"] {
                 width: 100%;
             }
+
+            .signal-section {
+                background: linear-gradient(135deg, rgba(37, 99, 235, 0.10), rgba(14, 165, 233, 0.06));
+                border: 1px solid rgba(37, 99, 235, 0.12);
+                border-radius: 18px;
+                padding: 1rem 1.1rem;
+                margin: 0.35rem 0 1rem 0;
+            }
+
+            .signal-section__eyebrow {
+                font-size: 0.72rem;
+                font-weight: 700;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                color: #315b96;
+                margin-bottom: 0.2rem;
+            }
+
+            .signal-section__title {
+                font-size: 1.05rem;
+                font-weight: 700;
+                color: #0f172a;
+                margin-bottom: 0.2rem;
+            }
+
+            .signal-section__text {
+                font-size: 0.9rem;
+                color: #475569;
+            }
+
+            .signal-divider {
+                height: 1px;
+                border: 0;
+                background: linear-gradient(90deg, rgba(148, 163, 184, 0.05), rgba(37, 99, 235, 0.42), rgba(148, 163, 184, 0.05));
+                margin: 1rem 0 1rem 0;
+            }
+
+            .signal-card-title {
+                font-size: 0.84rem;
+                font-weight: 700;
+                letter-spacing: 0.06em;
+                text-transform: uppercase;
+                color: #315b96;
+                margin-bottom: 0.4rem;
+            }
+
+            .signal-card-meta {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.45rem;
+                margin: 0.35rem 0 0.15rem 0;
+            }
+
+            .signal-card-badge {
+                display: inline-flex;
+                align-items: center;
+                border-radius: 999px;
+                padding: 0.18rem 0.6rem;
+                background: #eef4ff;
+                border: 1px solid #d9e5ff;
+                color: #214d86;
+                font-size: 0.78rem;
+                font-weight: 600;
+            }
+
+            .signal-card-summary {
+                display: inline-flex;
+                align-items: center;
+                border-radius: 999px;
+                padding: 0.18rem 0.6rem;
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
+                color: #475569;
+                font-size: 0.78rem;
+            }
+
+            .signal-rule-note {
+                background: #f8fafc;
+                border: 1px dashed #d5dfed;
+                border-radius: 12px;
+                padding: 0.7rem 0.85rem;
+                color: #475569;
+                font-size: 0.86rem;
+                margin-bottom: 0.85rem;
+            }
         </style>
         """,
         unsafe_allow_html=True,

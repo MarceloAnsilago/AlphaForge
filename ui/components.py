@@ -381,7 +381,55 @@ def _render_signal_rule_row(
     }
 
 
-def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
+def _build_signal_indicator_summary(selected_indicator: str) -> str:
+    if selected_indicator == "Nao usar":
+        return "Slot livre para composicao da regra."
+    if selected_indicator == "Externo":
+        return "Reservado para integracao externa."
+
+    outputs = SIGNAL_INDICATOR_OUTPUT_LABELS.get(selected_indicator, ["Valor"])
+    if len(outputs) == 1:
+        return f"Saida principal: {outputs[0]}"
+
+    return f"Saidas: {', '.join(outputs[:3])}"
+
+
+def _render_signal_indicator_card(
+    slot_number: int,
+) -> tuple[str, dict]:
+    indicator_key = f"ready_signal_indicator_{slot_number}"
+    selected_indicator = st.session_state.get(
+        indicator_key,
+        READY_SIGNAL_INDICATOR_OPTIONS[0],
+    )
+    parameters: dict = {}
+
+    with st.expander(f"Indicador {slot_number}", expanded=selected_indicator != "Nao usar"):
+        selected_indicator = st.selectbox(
+            f"Indicador {slot_number}",
+            options=READY_SIGNAL_INDICATOR_OPTIONS,
+            key=indicator_key,
+            label_visibility="collapsed",
+        )
+        st.markdown(
+            (
+                "<div class='signal-card-meta'>"
+                f"<span class='signal-card-badge'>{selected_indicator}</span>"
+                f"<span class='signal-card-summary'>{_build_signal_indicator_summary(selected_indicator)}</span>"
+                "</div>"
+            ),
+            unsafe_allow_html=True,
+        )
+        parameters = _render_signal_indicator_parameters(slot_number, selected_indicator)
+
+    return selected_indicator, parameters
+
+
+def _signal_indicator_key(slot_number: int, suffix: str) -> str:
+    return f"ready_signal_indicator_{slot_number}_{suffix}"
+
+
+def _render_signal_indicator_parameters(slot_number: int, selected_indicator: str) -> dict:
     if selected_indicator == "Keltner":
         period_col, ma_type_col = st.columns(2)
         with period_col:
@@ -390,18 +438,18 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=2,
                 step=1,
-                key="ready_signal_indicator_1_keltner_period",
+                key=_signal_indicator_key(slot_number, "keltner_period"),
             )
         with ma_type_col:
             ma_type = st.selectbox(
                 "Tipo de media",
                 options=MA_TYPE_OPTIONS,
-                key="ready_signal_indicator_1_keltner_ma_type",
+                key=_signal_indicator_key(slot_number, "keltner_ma_type"),
             )
         deviation = st.text_input(
             "Desvios",
             value="",
-            key="ready_signal_indicator_1_keltner_deviation",
+            key=_signal_indicator_key(slot_number, "keltner_deviation"),
         )
         return {
             "period": int(period),
@@ -415,7 +463,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
             min_value=1,
             value=21,
             step=1,
-            key="ready_signal_indicator_1_donchian_period",
+            key=_signal_indicator_key(slot_number, "donchian_period"),
         )
         return {
             "period": int(period),
@@ -429,18 +477,18 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=18,
                 step=1,
-                key="ready_signal_indicator_1_regression_period",
+                key=_signal_indicator_key(slot_number, "regression_period"),
             )
         with ma_type_col:
             ma_type = st.selectbox(
                 "Tipo de media",
                 options=MA_TYPE_OPTIONS,
-                key="ready_signal_indicator_1_regression_ma_type",
+                key=_signal_indicator_key(slot_number, "regression_ma_type"),
             )
         price_mode = st.selectbox(
             "Modo de preco",
             options=PRICE_MODE_OPTIONS,
-            key="ready_signal_indicator_1_regression_price_mode",
+            key=_signal_indicator_key(slot_number, "regression_price_mode"),
         )
         return {
             "period": int(period),
@@ -456,27 +504,27 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=14,
                 step=1,
-                key="ready_signal_indicator_1_deviation_period",
+                key=_signal_indicator_key(slot_number, "deviation_period"),
             )
         with displacement_col:
             displacement = st.number_input(
                 "Deslocamento",
                 value=0,
                 step=1,
-                key="ready_signal_indicator_1_deviation_shift",
+                key=_signal_indicator_key(slot_number, "deviation_shift"),
             )
         ma_type_col, price_mode_col = st.columns(2)
         with ma_type_col:
             ma_type = st.selectbox(
                 "Tipo de media",
                 options=MA_TYPE_OPTIONS,
-                key="ready_signal_indicator_1_deviation_ma_type",
+                key=_signal_indicator_key(slot_number, "deviation_ma_type"),
             )
         with price_mode_col:
             price_mode = st.selectbox(
                 "Modo de preco",
                 options=PRICE_MODE_OPTIONS,
-                key="ready_signal_indicator_1_deviation_price_mode",
+                key=_signal_indicator_key(slot_number, "deviation_price_mode"),
             )
         return {
             "period": int(period),
@@ -493,20 +541,20 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=2,
                 step=1,
-                key="ready_signal_indicator_1_mean_deviation_period",
+                key=_signal_indicator_key(slot_number, "mean_deviation_period"),
             )
         with ma_type_col:
             ma_type = st.selectbox(
                 "Tipo de media",
                 options=MA_TYPE_OPTIONS,
-                key="ready_signal_indicator_1_mean_deviation_ma_type",
+                key=_signal_indicator_key(slot_number, "mean_deviation_ma_type"),
             )
         price_mode = st.selectbox(
             "Modo de preco",
             options=PRICE_MODE_OPTIONS,
             index=None,
             placeholder="Selecione",
-            key="ready_signal_indicator_1_mean_deviation_price_mode",
+            key=_signal_indicator_key(slot_number, "mean_deviation_price_mode"),
         )
         return {
             "period": int(period),
@@ -522,7 +570,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=14,
                 step=1,
-                key="ready_signal_indicator_1_atr_channel_period",
+                key=_signal_indicator_key(slot_number, "atr_channel_period"),
             )
         with deviation_col:
             deviation = st.number_input(
@@ -530,7 +578,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=0.0,
                 value=2.0,
                 step=0.1,
-                key="ready_signal_indicator_1_atr_channel_deviation",
+                key=_signal_indicator_key(slot_number, "atr_channel_deviation"),
             )
         return {
             "period": int(period),
@@ -545,27 +593,27 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=21,
                 step=1,
-                key="ready_signal_indicator_1_moving_average_period",
+                key=_signal_indicator_key(slot_number, "moving_average_period"),
             )
         with displacement_col:
             displacement = st.number_input(
                 "Deslocamento",
                 value=0,
                 step=1,
-                key="ready_signal_indicator_1_moving_average_shift",
+                key=_signal_indicator_key(slot_number, "moving_average_shift"),
             )
         ma_type_col, price_mode_col = st.columns(2)
         with ma_type_col:
             ma_type = st.selectbox(
                 "Tipo de media",
                 options=MA_TYPE_OPTIONS,
-                key="ready_signal_indicator_1_moving_average_ma_type",
+                key=_signal_indicator_key(slot_number, "moving_average_ma_type"),
             )
         with price_mode_col:
             price_mode = st.selectbox(
                 "Modo de preco",
                 options=PRICE_MODE_OPTIONS,
-                key="ready_signal_indicator_1_moving_average_price_mode",
+                key=_signal_indicator_key(slot_number, "moving_average_price_mode"),
             )
         return {
             "period": int(period),
@@ -582,7 +630,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=20,
                 step=1,
-                key="ready_signal_indicator_1_bollinger_period",
+                key=_signal_indicator_key(slot_number, "bollinger_period"),
             )
         with deviation_col:
             deviation = st.number_input(
@@ -590,7 +638,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=0.0,
                 value=2.0,
                 step=0.1,
-                key="ready_signal_indicator_1_bollinger_deviation",
+                key=_signal_indicator_key(slot_number, "bollinger_deviation"),
             )
         displacement_col, price_mode_col = st.columns(2)
         with displacement_col:
@@ -598,13 +646,13 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 "Deslocamento",
                 value=0,
                 step=1,
-                key="ready_signal_indicator_1_bollinger_shift",
+                key=_signal_indicator_key(slot_number, "bollinger_shift"),
             )
         with price_mode_col:
             price_mode = st.selectbox(
                 "Modo de preco",
                 options=PRICE_MODE_OPTIONS,
-                key="ready_signal_indicator_1_bollinger_price_mode",
+                key=_signal_indicator_key(slot_number, "bollinger_price_mode"),
             )
         return {
             "period": int(period),
@@ -621,26 +669,26 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=2,
                 step=1,
-                key="ready_signal_indicator_1_macd_fast_ema",
+                key=_signal_indicator_key(slot_number, "macd_fast_ema"),
             )
         with slow_ema_col:
             slow_ema = st.text_input(
                 "EMA lenta",
                 value="",
-                key="ready_signal_indicator_1_macd_slow_ema",
+                key=_signal_indicator_key(slot_number, "macd_slow_ema"),
             )
         signal_col, price_mode_col = st.columns(2)
         with signal_col:
             signal = st.text_input(
                 "Sinal",
                 value="",
-                key="ready_signal_indicator_1_macd_signal",
+                key=_signal_indicator_key(slot_number, "macd_signal"),
             )
         with price_mode_col:
             price_mode = st.selectbox(
                 "Modo de preco",
                 options=PRICE_MODE_OPTIONS,
-                key="ready_signal_indicator_1_macd_price_mode",
+                key=_signal_indicator_key(slot_number, "macd_price_mode"),
             )
         return {
             "fast_ema": int(fast_ema),
@@ -657,34 +705,34 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=14,
                 step=1,
-                key="ready_signal_indicator_1_envelopes_period",
+                key=_signal_indicator_key(slot_number, "envelopes_period"),
             )
         with displacement_col:
             displacement = st.number_input(
                 "Deslocamento",
                 value=0,
                 step=1,
-                key="ready_signal_indicator_1_envelopes_shift",
+                key=_signal_indicator_key(slot_number, "envelopes_shift"),
             )
         ma_type_col, price_mode_col = st.columns(2)
         with ma_type_col:
             ma_type = st.selectbox(
                 "Tipo de media",
                 options=MA_TYPE_OPTIONS,
-                key="ready_signal_indicator_1_envelopes_ma_type",
+                key=_signal_indicator_key(slot_number, "envelopes_ma_type"),
             )
         with price_mode_col:
             price_mode = st.selectbox(
                 "Modo de preco",
                 options=PRICE_MODE_OPTIONS,
-                key="ready_signal_indicator_1_envelopes_price_mode",
+                key=_signal_indicator_key(slot_number, "envelopes_price_mode"),
             )
         deviation = st.number_input(
             "Desvios",
             min_value=0.0,
             value=1.0,
             step=0.1,
-            key="ready_signal_indicator_1_envelopes_deviation",
+            key=_signal_indicator_key(slot_number, "envelopes_deviation"),
         )
         return {
             "period": int(period),
@@ -702,7 +750,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=5,
                 step=1,
-                key="ready_signal_indicator_1_stochastic_k_period",
+                key=_signal_indicator_key(slot_number, "stochastic_k_period"),
             )
         with d_period_col:
             d_period = st.number_input(
@@ -710,7 +758,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=3,
                 step=1,
-                key="ready_signal_indicator_1_stochastic_d_period",
+                key=_signal_indicator_key(slot_number, "stochastic_d_period"),
             )
         slowing_col, ma_type_col = st.columns(2)
         with slowing_col:
@@ -719,18 +767,18 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=3,
                 step=1,
-                key="ready_signal_indicator_1_stochastic_slowing",
+                key=_signal_indicator_key(slot_number, "stochastic_slowing"),
             )
         with ma_type_col:
             ma_type = st.selectbox(
                 "Tipo de media",
                 options=MA_TYPE_OPTIONS,
-                key="ready_signal_indicator_1_stochastic_ma_type",
+                key=_signal_indicator_key(slot_number, "stochastic_ma_type"),
             )
         stochastic_type = st.selectbox(
             "Tipo estocastico",
             options=STOCHASTIC_TYPE_OPTIONS,
-            key="ready_signal_indicator_1_stochastic_type",
+            key=_signal_indicator_key(slot_number, "stochastic_type"),
         )
         return {
             "k_period": int(k_period),
@@ -748,13 +796,13 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=14,
                 step=1,
-                key="ready_signal_indicator_1_rsi_period",
+                key=_signal_indicator_key(slot_number, "rsi_period"),
             )
         with price_mode_col:
             price_mode = st.selectbox(
                 "Modo de preco",
                 options=PRICE_MODE_OPTIONS,
-                key="ready_signal_indicator_1_rsi_price_mode",
+                key=_signal_indicator_key(slot_number, "rsi_price_mode"),
             )
         return {
             "period": int(period),
@@ -769,26 +817,26 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=2,
                 step=1,
-                key="ready_signal_indicator_1_stddev_period",
+                key=_signal_indicator_key(slot_number, "stddev_period"),
             )
         with displacement_col:
             displacement = st.text_input(
                 "Deslocamento",
                 value="",
-                key="ready_signal_indicator_1_stddev_shift",
+                key=_signal_indicator_key(slot_number, "stddev_shift"),
             )
         ma_type_col, price_mode_col = st.columns(2)
         with ma_type_col:
             ma_type = st.selectbox(
                 "Tipo de media",
                 options=MA_TYPE_OPTIONS,
-                key="ready_signal_indicator_1_stddev_ma_type",
+                key=_signal_indicator_key(slot_number, "stddev_ma_type"),
             )
         with price_mode_col:
             price_mode = st.selectbox(
                 "Modo de preco",
                 options=PRICE_MODE_OPTIONS,
-                key="ready_signal_indicator_1_stddev_price_mode",
+                key=_signal_indicator_key(slot_number, "stddev_price_mode"),
             )
         return {
             "period": int(period),
@@ -801,7 +849,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
         volume_type = st.selectbox(
             "Tipo",
             options=VOLUME_TYPE_OPTIONS,
-            key="ready_signal_indicator_1_volume_type",
+            key=_signal_indicator_key(slot_number, "volume_type"),
         )
         return {
             "type": volume_type,
@@ -813,7 +861,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
             min_value=1,
             value=14,
             step=1,
-            key="ready_signal_indicator_1_atr_period",
+            key=_signal_indicator_key(slot_number, "atr_period"),
         )
         return {
             "period": int(period),
@@ -828,7 +876,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 value=0.02,
                 step=0.01,
                 format="%.2f",
-                key="ready_signal_indicator_1_parabolic_sar_step",
+                key=_signal_indicator_key(slot_number, "parabolic_sar_step"),
             )
         with maximum_col:
             maximum_value = st.number_input(
@@ -837,7 +885,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 value=0.2,
                 step=0.1,
                 format="%.1f",
-                key="ready_signal_indicator_1_parabolic_sar_maximum",
+                key=_signal_indicator_key(slot_number, "parabolic_sar_maximum"),
             )
         return {
             "step": float(step_value),
@@ -852,7 +900,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
         volume_type = st.selectbox(
             "Volume",
             options=VOLUME_TYPE_OPTIONS,
-            key="ready_signal_indicator_1_obv_volume_type",
+            key=_signal_indicator_key(slot_number, "obv_volume_type"),
         )
         return {
             "volume_type": volume_type,
@@ -862,7 +910,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
         volume_type = st.selectbox(
             "Volume",
             options=VOLUME_TYPE_OPTIONS,
-            key="ready_signal_indicator_1_ad_volume_type",
+            key=_signal_indicator_key(slot_number, "ad_volume_type"),
         )
         return {
             "volume_type": volume_type,
@@ -876,13 +924,13 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=14,
                 step=1,
-                key="ready_signal_indicator_1_mfi_period",
+                key=_signal_indicator_key(slot_number, "mfi_period"),
             )
         with volume_col:
             volume_type = st.selectbox(
                 "Volume",
                 options=VOLUME_TYPE_OPTIONS,
-                key="ready_signal_indicator_1_mfi_volume_type",
+                key=_signal_indicator_key(slot_number, "mfi_volume_type"),
             )
         return {
             "period": int(period),
@@ -897,7 +945,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=9,
                 step=1,
-                key="ready_signal_indicator_1_vidya_cmo_period",
+                key=_signal_indicator_key(slot_number, "vidya_cmo_period"),
             )
         with ema_period_col:
             ema_period = st.number_input(
@@ -905,7 +953,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=12,
                 step=1,
-                key="ready_signal_indicator_1_vidya_ema_period",
+                key=_signal_indicator_key(slot_number, "vidya_ema_period"),
             )
         displacement_col, price_mode_col = st.columns(2)
         with displacement_col:
@@ -913,13 +961,13 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 "Deslocamento",
                 value=0,
                 step=1,
-                key="ready_signal_indicator_1_vidya_shift",
+                key=_signal_indicator_key(slot_number, "vidya_shift"),
             )
         with price_mode_col:
             price_mode = st.selectbox(
                 "Modo de preco",
                 options=PRICE_MODE_OPTIONS,
-                key="ready_signal_indicator_1_vidya_price_mode",
+                key=_signal_indicator_key(slot_number, "vidya_price_mode"),
             )
         return {
             "cmo_period": int(cmo_period),
@@ -936,19 +984,19 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=14,
                 step=1,
-                key="ready_signal_indicator_1_dema_period",
+                key=_signal_indicator_key(slot_number, "dema_period"),
             )
         with displacement_col:
             displacement = st.number_input(
                 "Deslocamento",
                 value=0,
                 step=1,
-                key="ready_signal_indicator_1_dema_shift",
+                key=_signal_indicator_key(slot_number, "dema_shift"),
             )
         price_mode = st.selectbox(
             "Modo de preco",
             options=PRICE_MODE_OPTIONS,
-            key="ready_signal_indicator_1_dema_price_mode",
+            key=_signal_indicator_key(slot_number, "dema_price_mode"),
         )
         return {
             "period": int(period),
@@ -964,19 +1012,19 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=14,
                 step=1,
-                key="ready_signal_indicator_1_tema_period",
+                key=_signal_indicator_key(slot_number, "tema_period"),
             )
         with displacement_col:
             displacement = st.number_input(
                 "Deslocamento",
                 value=0,
                 step=1,
-                key="ready_signal_indicator_1_tema_shift",
+                key=_signal_indicator_key(slot_number, "tema_shift"),
             )
         price_mode = st.selectbox(
             "Modo de preco",
             options=PRICE_MODE_OPTIONS,
-            key="ready_signal_indicator_1_tema_price_mode",
+            key=_signal_indicator_key(slot_number, "tema_price_mode"),
         )
         return {
             "period": int(period),
@@ -992,19 +1040,19 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=14,
                 step=1,
-                key="ready_signal_indicator_1_frama_period",
+                key=_signal_indicator_key(slot_number, "frama_period"),
             )
         with displacement_col:
             displacement = st.number_input(
                 "Deslocamento",
                 value=0,
                 step=1,
-                key="ready_signal_indicator_1_frama_shift",
+                key=_signal_indicator_key(slot_number, "frama_shift"),
             )
         price_mode = st.selectbox(
             "Modo de preco",
             options=PRICE_MODE_OPTIONS,
-            key="ready_signal_indicator_1_frama_price_mode",
+            key=_signal_indicator_key(slot_number, "frama_price_mode"),
         )
         return {
             "period": int(period),
@@ -1020,13 +1068,13 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=14,
                 step=1,
-                key="ready_signal_indicator_1_trix_period",
+                key=_signal_indicator_key(slot_number, "trix_period"),
             )
         with price_mode_col:
             price_mode = st.selectbox(
                 "Modo de preco",
                 options=PRICE_MODE_OPTIONS,
-                key="ready_signal_indicator_1_trix_price_mode",
+                key=_signal_indicator_key(slot_number, "trix_price_mode"),
             )
         return {
             "period": int(period),
@@ -1039,7 +1087,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
             min_value=1,
             value=13,
             step=1,
-            key="ready_signal_indicator_1_bears_power_period",
+            key=_signal_indicator_key(slot_number, "bears_power_period"),
         )
         return {
             "period": int(period),
@@ -1051,7 +1099,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
             min_value=1,
             value=13,
             step=1,
-            key="ready_signal_indicator_1_bulls_power_period",
+            key=_signal_indicator_key(slot_number, "bulls_power_period"),
         )
         return {
             "period": int(period),
@@ -1065,7 +1113,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=3,
                 step=1,
-                key="ready_signal_indicator_1_chaikin_fast_ma",
+                key=_signal_indicator_key(slot_number, "chaikin_fast_ma"),
             )
         with slow_ma_col:
             slow_ma = st.number_input(
@@ -1073,20 +1121,20 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=10,
                 step=1,
-                key="ready_signal_indicator_1_chaikin_slow_ma",
+                key=_signal_indicator_key(slot_number, "chaikin_slow_ma"),
             )
         ma_type_col, volume_type_col = st.columns(2)
         with ma_type_col:
             ma_type = st.selectbox(
                 "Tipo de media",
                 options=MA_TYPE_OPTIONS,
-                key="ready_signal_indicator_1_chaikin_ma_type",
+                key=_signal_indicator_key(slot_number, "chaikin_ma_type"),
             )
         with volume_type_col:
             volume_type = st.selectbox(
                 "Volume",
                 options=VOLUME_TYPE_OPTIONS,
-                key="ready_signal_indicator_1_chaikin_volume_type",
+                key=_signal_indicator_key(slot_number, "chaikin_volume_type"),
             )
         return {
             "fast_ma": int(fast_ma),
@@ -1111,13 +1159,13 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=14,
                 step=1,
-                key="ready_signal_indicator_1_cci_period",
+                key=_signal_indicator_key(slot_number, "cci_period"),
             )
         with price_mode_col:
             price_mode = st.selectbox(
                 "Modo de preco",
                 options=PRICE_MODE_OPTIONS,
-                key="ready_signal_indicator_1_cci_price_mode",
+                key=_signal_indicator_key(slot_number, "cci_price_mode"),
             )
         return {
             "period": int(period),
@@ -1130,7 +1178,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
             min_value=1,
             value=14,
             step=1,
-            key="ready_signal_indicator_1_demarker_period",
+            key=_signal_indicator_key(slot_number, "demarker_period"),
         )
         return {
             "period": int(period),
@@ -1144,14 +1192,14 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=13,
                 step=1,
-                key="ready_signal_indicator_1_alligator_jaw_period",
+                key=_signal_indicator_key(slot_number, "alligator_jaw_period"),
             )
         with jaw_shift_col:
             jaw_shift = st.number_input(
                 "Deslocamento mandibula",
                 value=8,
                 step=1,
-                key="ready_signal_indicator_1_alligator_jaw_shift",
+                key=_signal_indicator_key(slot_number, "alligator_jaw_shift"),
             )
         teeth_period_col, teeth_shift_col = st.columns(2)
         with teeth_period_col:
@@ -1160,14 +1208,14 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=8,
                 step=1,
-                key="ready_signal_indicator_1_alligator_teeth_period",
+                key=_signal_indicator_key(slot_number, "alligator_teeth_period"),
             )
         with teeth_shift_col:
             teeth_shift = st.number_input(
                 "Deslocamento dente",
                 value=5,
                 step=1,
-                key="ready_signal_indicator_1_alligator_teeth_shift",
+                key=_signal_indicator_key(slot_number, "alligator_teeth_shift"),
             )
         lips_period_col, lips_shift_col = st.columns(2)
         with lips_period_col:
@@ -1176,27 +1224,27 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=5,
                 step=1,
-                key="ready_signal_indicator_1_alligator_lips_period",
+                key=_signal_indicator_key(slot_number, "alligator_lips_period"),
             )
         with lips_shift_col:
             lips_shift = st.number_input(
                 "Deslocamento boca",
                 value=3,
                 step=1,
-                key="ready_signal_indicator_1_alligator_lips_shift",
+                key=_signal_indicator_key(slot_number, "alligator_lips_shift"),
             )
         ma_type_col, price_mode_col = st.columns(2)
         with ma_type_col:
             ma_type = st.selectbox(
                 "Tipo de media",
                 options=MA_TYPE_OPTIONS,
-                key="ready_signal_indicator_1_alligator_ma_type",
+                key=_signal_indicator_key(slot_number, "alligator_ma_type"),
             )
         with price_mode_col:
             price_mode = st.selectbox(
                 "Modo de preco",
                 options=PRICE_MODE_OPTIONS,
-                key="ready_signal_indicator_1_alligator_price_mode",
+                key=_signal_indicator_key(slot_number, "alligator_price_mode"),
             )
         return {
             "jaw_period": int(jaw_period),
@@ -1217,7 +1265,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=9,
                 step=1,
-                key="ready_signal_indicator_1_ichimoku_tenkan_sen",
+                key=_signal_indicator_key(slot_number, "ichimoku_tenkan_sen"),
             )
         with kijun_col:
             kijun_sen = st.number_input(
@@ -1225,14 +1273,14 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=26,
                 step=1,
-                key="ready_signal_indicator_1_ichimoku_kijun_sen",
+                key=_signal_indicator_key(slot_number, "ichimoku_kijun_sen"),
             )
         senkou_span_b = st.number_input(
             "Senkou Span B",
             min_value=1,
             value=52,
             step=1,
-            key="ready_signal_indicator_1_ichimoku_senkou_span_b",
+            key=_signal_indicator_key(slot_number, "ichimoku_senkou_span_b"),
         )
         return {
             "tenkan_sen": int(tenkan_sen),
@@ -1246,7 +1294,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
             min_value=1,
             value=14,
             step=1,
-            key="ready_signal_indicator_1_adx_period",
+            key=_signal_indicator_key(slot_number, "adx_period"),
         )
         return {
             "period": int(period),
@@ -1258,7 +1306,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
             min_value=1,
             value=14,
             step=1,
-            key="ready_signal_indicator_1_adx_wilder_period",
+            key=_signal_indicator_key(slot_number, "adx_wilder_period"),
         )
         return {
             "period": int(period),
@@ -1272,14 +1320,14 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=13,
                 step=1,
-                key="ready_signal_indicator_1_gator_jaw_period",
+                key=_signal_indicator_key(slot_number, "gator_jaw_period"),
             )
         with jaw_shift_col:
             jaw_shift = st.number_input(
                 "Deslocamento mandibula",
                 value=8,
                 step=1,
-                key="ready_signal_indicator_1_gator_jaw_shift",
+                key=_signal_indicator_key(slot_number, "gator_jaw_shift"),
             )
         teeth_period_col, teeth_shift_col = st.columns(2)
         with teeth_period_col:
@@ -1288,14 +1336,14 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=8,
                 step=1,
-                key="ready_signal_indicator_1_gator_teeth_period",
+                key=_signal_indicator_key(slot_number, "gator_teeth_period"),
             )
         with teeth_shift_col:
             teeth_shift = st.number_input(
                 "Deslocamento dente",
                 value=5,
                 step=1,
-                key="ready_signal_indicator_1_gator_teeth_shift",
+                key=_signal_indicator_key(slot_number, "gator_teeth_shift"),
             )
         lips_period_col, lips_shift_col = st.columns(2)
         with lips_period_col:
@@ -1304,27 +1352,27 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=5,
                 step=1,
-                key="ready_signal_indicator_1_gator_lips_period",
+                key=_signal_indicator_key(slot_number, "gator_lips_period"),
             )
         with lips_shift_col:
             lips_shift = st.number_input(
                 "Deslocamento boca",
                 value=3,
                 step=1,
-                key="ready_signal_indicator_1_gator_lips_shift",
+                key=_signal_indicator_key(slot_number, "gator_lips_shift"),
             )
         ma_type_col, price_mode_col = st.columns(2)
         with ma_type_col:
             ma_type = st.selectbox(
                 "Tipo de media",
                 options=MA_TYPE_OPTIONS,
-                key="ready_signal_indicator_1_gator_ma_type",
+                key=_signal_indicator_key(slot_number, "gator_ma_type"),
             )
         with price_mode_col:
             price_mode = st.selectbox(
                 "Modo de preco",
                 options=PRICE_MODE_OPTIONS,
-                key="ready_signal_indicator_1_gator_price_mode",
+                key=_signal_indicator_key(slot_number, "gator_price_mode"),
             )
         return {
             "jaw_period": int(jaw_period),
@@ -1345,7 +1393,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=14,
                 step=1,
-                key="ready_signal_indicator_1_wpr_period",
+                key=_signal_indicator_key(slot_number, "wpr_period"),
             )
         with deviation_col:
             deviation = st.number_input(
@@ -1353,7 +1401,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=0.0,
                 value=2.0,
                 step=0.1,
-                key="ready_signal_indicator_1_wpr_deviation",
+                key=_signal_indicator_key(slot_number, "wpr_deviation"),
             )
         return {
             "period": int(period),
@@ -1364,7 +1412,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
         volume_type = st.selectbox(
             "Volume",
             options=VOLUME_TYPE_OPTIONS,
-            key="ready_signal_indicator_1_market_facilitation_volume_type",
+            key=_signal_indicator_key(slot_number, "market_facilitation_volume_type"),
         )
         return {
             "volume_type": volume_type,
@@ -1378,13 +1426,13 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
                 min_value=1,
                 value=14,
                 step=1,
-                key="ready_signal_indicator_1_momentum_period",
+                key=_signal_indicator_key(slot_number, "momentum_period"),
             )
         with price_mode_col:
             price_mode = st.selectbox(
                 "Modo de preco",
                 options=PRICE_MODE_OPTIONS,
-                key="ready_signal_indicator_1_momentum_price_mode",
+                key=_signal_indicator_key(slot_number, "momentum_price_mode"),
             )
         return {
             "period": int(period),
@@ -1397,7 +1445,7 @@ def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
             min_value=1,
             value=14,
             step=1,
-            key="ready_signal_indicator_1_rvi_period",
+            key=_signal_indicator_key(slot_number, "rvi_period"),
         )
         return {
             "period": int(period),
@@ -1950,8 +1998,11 @@ def render_sinais_prontos() -> dict:
     signal_indicator_1 = READY_SIGNAL_INDICATOR_OPTIONS[0]
     signal_indicator_1_parameters = {}
     signal_indicator_2 = READY_SIGNAL_INDICATOR_OPTIONS[0]
+    signal_indicator_2_parameters = {}
     signal_indicator_3 = READY_SIGNAL_INDICATOR_OPTIONS[0]
+    signal_indicator_3_parameters = {}
     signal_indicator_4 = READY_SIGNAL_INDICATOR_OPTIONS[0]
+    signal_indicator_4_parameters = {}
     signal_rules: list[dict] = []
     band_channels_signal = "Nao usar"
     band_channels_enabled = False
@@ -2129,39 +2180,52 @@ def render_sinais_prontos() -> dict:
             st.caption(f"Condicao selecionada: {overbought_oversold_signal}")
 
     with st.expander("Configurar sinais", expanded=False):
-        with st.expander("Indicador 1", expanded=False):
-            signal_indicator_1 = st.selectbox(
-                "Indicador 1",
-                options=READY_SIGNAL_INDICATOR_OPTIONS,
-                key="ready_signal_indicator_1",
-            )
-            signal_indicator_1_parameters = _render_signal_indicator_1_parameters(
-                signal_indicator_1
-            )
+        st.markdown(
+            """
+            <div class="signal-section">
+                <div class="signal-section__eyebrow">Painel de Indicadores</div>
+                <div class="signal-section__title">Monte a camada base dos sinais</div>
+                <div class="signal-section__text">
+                    Cada slot libera fontes para o motor de regras logo abaixo.
+                    O Indicador 1 continua sendo o ponto de configuracao detalhada.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-        with st.expander("Indicador 2", expanded=False):
-            signal_indicator_2 = st.selectbox(
-                "Indicador 2",
-                options=READY_SIGNAL_INDICATOR_OPTIONS,
-                key="ready_signal_indicator_2",
-            )
+        indicator_row_1_col_1, indicator_row_1_col_2 = st.columns(2)
+        with indicator_row_1_col_1:
+            signal_indicator_1, signal_indicator_1_parameters = _render_signal_indicator_card(1)
+        with indicator_row_1_col_2:
+            signal_indicator_2, signal_indicator_2_parameters = _render_signal_indicator_card(2)
 
-        with st.expander("Indicador 3", expanded=False):
-            signal_indicator_3 = st.selectbox(
-                "Indicador 3",
-                options=READY_SIGNAL_INDICATOR_OPTIONS,
-                key="ready_signal_indicator_3",
-            )
+        indicator_row_2_col_1, indicator_row_2_col_2 = st.columns(2)
+        with indicator_row_2_col_1:
+            signal_indicator_3, signal_indicator_3_parameters = _render_signal_indicator_card(3)
+        with indicator_row_2_col_2:
+            signal_indicator_4, signal_indicator_4_parameters = _render_signal_indicator_card(4)
 
-        with st.expander("Indicador 4", expanded=False):
-            signal_indicator_4 = st.selectbox(
-                "Indicador 4",
-                options=READY_SIGNAL_INDICATOR_OPTIONS,
-                key="ready_signal_indicator_4",
-            )
-
-        st.caption(
-            "Com a vela no modo completo, podera selecionar qualquer vela do historico."
+        st.markdown("<div class='signal-divider'></div>", unsafe_allow_html=True)
+        st.markdown(
+            """
+            <div class="signal-section">
+                <div class="signal-section__eyebrow">Motor de Regras</div>
+                <div class="signal-section__title">Combine os componentes em sequencias logicas</div>
+                <div class="signal-section__text">
+                    Use as fontes dos indicadores acima, campos de preco e referencias fixas para montar as condicoes.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            """
+            <div class="signal-rule-note">
+                Com a vela no modo completo, podera selecionar qualquer vela do historico.
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
         signal_rule_source_options, signal_rule_source_labels = _build_signal_rule_source_options(
@@ -2173,32 +2237,36 @@ def render_sinais_prontos() -> dict:
             ]
         )
 
-        header_col_1, header_col_2, header_col_3, header_col_4, header_col_5, header_col_6 = st.columns(
-            [1.0, 2.5, 1.7, 2.2, 2.5, 1.7]
-        )
-        header_col_1.markdown("**Comando logico**")
-        header_col_2.markdown("**Fonte A**")
-        header_col_3.markdown("**Candle A**")
-        header_col_4.markdown("**Operador**")
-        header_col_5.markdown("**Fonte B**")
-        header_col_6.markdown("**Candle B**")
-
-        for rule_index in range(SIGNAL_RULE_COUNT):
-            signal_rules.append(
-                _render_signal_rule_row(
-                    rule_index,
-                    signal_rule_source_options,
-                    signal_rule_source_labels,
-                )
+        with st.container(border=True):
+            header_col_1, header_col_2, header_col_3, header_col_4, header_col_5, header_col_6 = st.columns(
+                [1.0, 2.5, 1.7, 2.2, 2.5, 1.7]
             )
+            header_col_1.markdown("**Comando logico**")
+            header_col_2.markdown("**Fonte A**")
+            header_col_3.markdown("**Candle A**")
+            header_col_4.markdown("**Operador**")
+            header_col_5.markdown("**Fonte B**")
+            header_col_6.markdown("**Candle B**")
+
+            for rule_index in range(SIGNAL_RULE_COUNT):
+                signal_rules.append(
+                    _render_signal_rule_row(
+                        rule_index,
+                        signal_rule_source_options,
+                        signal_rule_source_labels,
+                    )
+                )
 
     return {
         "signal_settings": {
             "indicator_1": signal_indicator_1,
             "indicator_1_parameters": signal_indicator_1_parameters,
             "indicator_2": signal_indicator_2,
+            "indicator_2_parameters": signal_indicator_2_parameters,
             "indicator_3": signal_indicator_3,
+            "indicator_3_parameters": signal_indicator_3_parameters,
             "indicator_4": signal_indicator_4,
+            "indicator_4_parameters": signal_indicator_4_parameters,
             "rules": signal_rules,
         },
         "band_channels": {
