@@ -63,6 +63,53 @@ STOCHASTIC_TYPE_OPTIONS = [
     "Minimo/Maximo",
     "Fechamento/Fechamento",
 ]
+SIGNAL_RULE_COUNT = 5
+SIGNAL_LOGICAL_COMMAND_OPTIONS = [
+    "SE",
+    "E",
+    "OU",
+    "E SE",
+    "OU SE",
+    "E Tambem",
+    "OU Tambem",
+]
+SIGNAL_RULE_OPERATOR_LABELS = {
+    "GREATER_THAN": "Maior que",
+    "LESS_THAN": "Menor que",
+    "GREATER_OR_EQUAL": "Maior ou igual que",
+    "LESS_OR_EQUAL": "Menor ou igual que",
+    "EQUAL": "Igual que",
+    "NOT_EQUAL": "Diferente de",
+    "CROSS_UP": "Cruzar p/ cima de",
+    "CROSS_DOWN": "Cruzar p/ baixo de",
+    "CROSS_AND_CLOSE_ABOVE": "Cruzar & fechar acima de",
+    "CROSS_AND_CLOSE_BELOW": "Cruzar & fechar abaixo de",
+}
+SIGNAL_RULE_CANDLE_LABELS = {
+    0: "Vela atual (0)",
+    1: "Vela anterior (1)",
+    2: "Penultima vela (2)",
+    3: "Anti Penultima (3)",
+}
+SIGNAL_RULE_SOURCE_LABELS = {
+    "NONE": "Nao usar",
+    "ABSOLUTE_VALUE": "Valor absoluto",
+    "POINT_VALUE": "Valor em pontos",
+    "ENTRY_PRICE": "Preco de entrada",
+    "AVERAGE_PRICE": "Preco Medio",
+    "CURRENT_PRICE": "Preco Atual",
+    "CANDLE_CLOSE": "Fechamento da vela",
+    "CANDLE_OPEN": "Abertura da vela",
+    "CANDLE_HIGH": "Maxima da vela",
+    "CANDLE_LOW": "Minima da vela",
+    "DAY_CLOSE": "Fechamento do dia",
+    "DAY_OPEN": "Abertura do dia",
+    "DAY_HIGH": "Maxima do dia",
+    "DAY_LOW": "Minima do dia",
+    "CANDLE_SIZE": "Tamanho da vela",
+    "CANDLE_BODY": "Corpo da vela",
+    "EMPTY_VALUE": "Empty Value",
+}
 READY_SIGNAL_INDICATOR_OPTIONS = [
     "Nao usar",
     "Externo",
@@ -108,6 +155,56 @@ READY_SIGNAL_INDICATOR_OPTIONS = [
     "Momentum",
     "RVI (Relative Vigor Index)",
 ]
+
+SIGNAL_INDICATOR_OUTPUT_LABELS = {
+    "Keltner": ["Superior", "Media", "Inferior"],
+    "Donchian": ["Superior", "Meio", "Inferior"],
+    "Regressao": ["Valor"],
+    "Afastamento da media": ["Valor"],
+    "Desvio Medio": ["Valor"],
+    "Canal ATR": ["Superior", "Media", "Inferior"],
+    "Media Movel": ["Valor"],
+    "Bandas de Bollinger": ["Superior", "Media", "Inferior"],
+    "MACD": ["Linha MACD", "Linha de sinal", "Histograma"],
+    "Envelopes": ["Superior", "Media", "Inferior"],
+    "Estocastico": ["%K", "%D"],
+    "RSI (Relative Strength Index)": ["Valor"],
+    "Desvio Padrao": ["Valor"],
+    "Volume": ["Valor"],
+    "ATR (Average True Range)": ["Valor"],
+    "Parabolic SAR": ["Valor"],
+    "Fractal": ["Superior", "Inferior"],
+    "OBV (On Balance Volume)": ["Valor"],
+    "Acumulacao/Distribuicao (A/D)": ["Valor"],
+    "MFI (Money Flow Index)": ["Valor"],
+    "Vidya": ["Valor"],
+    "DEMA": ["Valor"],
+    "TEMA": ["Valor"],
+    "FRAMA": ["Valor"],
+    "TRIX": ["Valor"],
+    "Bears Power": ["Valor"],
+    "Bulls Power": ["Valor"],
+    "Chaikin Oscilador": ["Valor"],
+    "Accelerator Oscillator": ["Valor"],
+    "Awesome Oscillator": ["Valor"],
+    "CCI (Commodity Channel Index)": ["Valor"],
+    "DeMarker": ["Valor"],
+    "Alligator": ["Mandibula", "Dente", "Boca"],
+    "Nuvem de Ichimoku": [
+        "Tenkan-sen",
+        "Kijun-sen",
+        "Senkou Span A",
+        "Senkou Span B",
+        "Chikou Span",
+    ],
+    "ADX (Average Directional Index)": ["ADX", "+DI", "-DI"],
+    "ADX Welles Wilder": ["ADX", "+DI", "-DI"],
+    "Gator Oscillator": ["Superior", "Inferior"],
+    "Williams %R (WPR)": ["Valor"],
+    "Market Facilitation Index": ["Valor"],
+    "Momentum": ["Valor"],
+    "RVI (Relative Vigor Index)": ["RVI", "Sinal"],
+}
 
 
 def _format_distance_type(value: str) -> str:
@@ -160,6 +257,128 @@ def _format_stop_reference_example(mode: str, candle_count: int, reference: str)
         return f"Ex.: media das {count_label} ultimas {reference_label}."
 
     return "Ex.: 1 = primeiro candle, 2 = segundo candle, 3 = terceiro candle."
+
+
+def _build_signal_rule_source_options(
+    indicators: list[str],
+) -> tuple[list[str], dict[str, str]]:
+    options = list(SIGNAL_RULE_SOURCE_LABELS.keys())
+    labels = dict(SIGNAL_RULE_SOURCE_LABELS)
+
+    for indicator_index, indicator_name in enumerate(indicators, start=1):
+        if indicator_name in {"Nao usar", "Externo"}:
+            continue
+
+        output_labels = SIGNAL_INDICATOR_OUTPUT_LABELS.get(indicator_name, ["Valor"])
+        for output_label in output_labels:
+            option_value = f"INDICATOR_{indicator_index}:{output_label}"
+            option_label = f"Indicador {indicator_index} - {indicator_name} - {output_label}"
+            options.append(option_value)
+            labels[option_value] = option_label
+
+    return options, labels
+
+
+def _render_signal_rule_row(
+    rule_index: int,
+    source_options: list[str],
+    source_labels: dict[str, str],
+) -> dict:
+    logical_command_key = f"ready_signal_rule_{rule_index}_logical_command"
+    source_a_key = f"ready_signal_rule_{rule_index}_source_a"
+    candle_a_key = f"ready_signal_rule_{rule_index}_candle_a"
+    operator_key = f"ready_signal_rule_{rule_index}_operator"
+    source_b_key = f"ready_signal_rule_{rule_index}_source_b"
+    candle_b_key = f"ready_signal_rule_{rule_index}_candle_b"
+
+    if st.session_state.get(logical_command_key) not in SIGNAL_LOGICAL_COMMAND_OPTIONS:
+        st.session_state[logical_command_key] = SIGNAL_LOGICAL_COMMAND_OPTIONS[0]
+    if st.session_state.get(source_a_key) not in source_options:
+        st.session_state[source_a_key] = source_options[0]
+    if st.session_state.get(candle_a_key) not in SIGNAL_RULE_CANDLE_LABELS:
+        st.session_state[candle_a_key] = 0
+    if st.session_state.get(operator_key) not in SIGNAL_RULE_OPERATOR_LABELS:
+        st.session_state[operator_key] = list(SIGNAL_RULE_OPERATOR_LABELS.keys())[0]
+    if st.session_state.get(source_b_key) not in source_options:
+        st.session_state[source_b_key] = source_options[0]
+    if st.session_state.get(candle_b_key) not in SIGNAL_RULE_CANDLE_LABELS:
+        st.session_state[candle_b_key] = 0
+
+    command_col, source_a_col, candle_a_col, operator_col, source_b_col, candle_b_col = st.columns(
+        [1.0, 2.5, 1.7, 2.2, 2.5, 1.7]
+    )
+
+    with command_col:
+        logical_command = st.selectbox(
+            f"Comando logico {rule_index + 1}",
+            options=SIGNAL_LOGICAL_COMMAND_OPTIONS,
+            key=logical_command_key,
+            label_visibility="collapsed",
+        )
+    with source_a_col:
+        source_a = st.selectbox(
+            f"Fonte A {rule_index + 1}",
+            options=source_options,
+            format_func=lambda value: source_labels[value],
+            key=source_a_key,
+            label_visibility="collapsed",
+        )
+    with candle_a_col:
+        candle_a = st.selectbox(
+            f"Candle A {rule_index + 1}",
+            options=list(SIGNAL_RULE_CANDLE_LABELS.keys()),
+            format_func=lambda value: SIGNAL_RULE_CANDLE_LABELS[value],
+            key=candle_a_key,
+            label_visibility="collapsed",
+        )
+    with operator_col:
+        operator = st.selectbox(
+            f"Operador {rule_index + 1}",
+            options=list(SIGNAL_RULE_OPERATOR_LABELS.keys()),
+            format_func=lambda value: SIGNAL_RULE_OPERATOR_LABELS[value],
+            key=operator_key,
+            label_visibility="collapsed",
+        )
+    with source_b_col:
+        source_b = st.selectbox(
+            f"Fonte B {rule_index + 1}",
+            options=source_options,
+            format_func=lambda value: source_labels[value],
+            key=source_b_key,
+            label_visibility="collapsed",
+        )
+    with candle_b_col:
+        candle_b = st.selectbox(
+            f"Candle B {rule_index + 1}",
+            options=list(SIGNAL_RULE_CANDLE_LABELS.keys()),
+            format_func=lambda value: SIGNAL_RULE_CANDLE_LABELS[value],
+            key=candle_b_key,
+            label_visibility="collapsed",
+        )
+
+    return {
+        "logical_command": logical_command,
+        "source_a": {
+            "value": source_a,
+            "label": source_labels[source_a],
+        },
+        "candle_a": {
+            "value": int(candle_a),
+            "label": SIGNAL_RULE_CANDLE_LABELS[candle_a],
+        },
+        "operator": {
+            "value": operator,
+            "label": SIGNAL_RULE_OPERATOR_LABELS[operator],
+        },
+        "source_b": {
+            "value": source_b,
+            "label": source_labels[source_b],
+        },
+        "candle_b": {
+            "value": int(candle_b),
+            "label": SIGNAL_RULE_CANDLE_LABELS[candle_b],
+        },
+    }
 
 
 def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
@@ -1733,6 +1952,7 @@ def render_sinais_prontos() -> dict:
     signal_indicator_2 = READY_SIGNAL_INDICATOR_OPTIONS[0]
     signal_indicator_3 = READY_SIGNAL_INDICATOR_OPTIONS[0]
     signal_indicator_4 = READY_SIGNAL_INDICATOR_OPTIONS[0]
+    signal_rules: list[dict] = []
     band_channels_signal = "Nao usar"
     band_channels_enabled = False
     band_channels_indicator = BAND_CHANNEL_INDICATOR_OPTIONS[0]
@@ -1940,6 +2160,38 @@ def render_sinais_prontos() -> dict:
                 key="ready_signal_indicator_4",
             )
 
+        st.caption(
+            "Com a vela no modo completo, podera selecionar qualquer vela do historico."
+        )
+
+        signal_rule_source_options, signal_rule_source_labels = _build_signal_rule_source_options(
+            [
+                signal_indicator_1,
+                signal_indicator_2,
+                signal_indicator_3,
+                signal_indicator_4,
+            ]
+        )
+
+        header_col_1, header_col_2, header_col_3, header_col_4, header_col_5, header_col_6 = st.columns(
+            [1.0, 2.5, 1.7, 2.2, 2.5, 1.7]
+        )
+        header_col_1.markdown("**Comando logico**")
+        header_col_2.markdown("**Fonte A**")
+        header_col_3.markdown("**Candle A**")
+        header_col_4.markdown("**Operador**")
+        header_col_5.markdown("**Fonte B**")
+        header_col_6.markdown("**Candle B**")
+
+        for rule_index in range(SIGNAL_RULE_COUNT):
+            signal_rules.append(
+                _render_signal_rule_row(
+                    rule_index,
+                    signal_rule_source_options,
+                    signal_rule_source_labels,
+                )
+            )
+
     return {
         "signal_settings": {
             "indicator_1": signal_indicator_1,
@@ -1947,6 +2199,7 @@ def render_sinais_prontos() -> dict:
             "indicator_2": signal_indicator_2,
             "indicator_3": signal_indicator_3,
             "indicator_4": signal_indicator_4,
+            "rules": signal_rules,
         },
         "band_channels": {
             "enabled": band_channels_enabled,
