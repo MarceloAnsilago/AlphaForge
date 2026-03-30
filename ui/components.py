@@ -681,6 +681,9 @@ def render_saidas_parciais() -> dict:
 
 def render_sinais_prontos() -> dict:
     signal_indicator_1 = READY_SIGNAL_INDICATOR_OPTIONS[0]
+    signal_indicator_2 = READY_SIGNAL_INDICATOR_OPTIONS[0]
+    signal_indicator_3 = READY_SIGNAL_INDICATOR_OPTIONS[0]
+    signal_indicator_4 = READY_SIGNAL_INDICATOR_OPTIONS[0]
     band_channels_signal = "Nao usar"
     band_channels_enabled = False
     band_channels_indicator = BAND_CHANNEL_INDICATOR_OPTIONS[0]
@@ -857,15 +860,40 @@ def render_sinais_prontos() -> dict:
             st.caption(f"Condicao selecionada: {overbought_oversold_signal}")
 
     with st.expander("Configurar sinais", expanded=False):
-        signal_indicator_1 = st.selectbox(
-            "Indicador 1",
-            options=READY_SIGNAL_INDICATOR_OPTIONS,
-            key="ready_signal_indicator_1",
-        )
+        with st.expander("Indicador 1", expanded=False):
+            signal_indicator_1 = st.selectbox(
+                "Indicador 1",
+                options=READY_SIGNAL_INDICATOR_OPTIONS,
+                key="ready_signal_indicator_1",
+            )
+
+        with st.expander("Indicador 2", expanded=False):
+            signal_indicator_2 = st.selectbox(
+                "Indicador 2",
+                options=READY_SIGNAL_INDICATOR_OPTIONS,
+                key="ready_signal_indicator_2",
+            )
+
+        with st.expander("Indicador 3", expanded=False):
+            signal_indicator_3 = st.selectbox(
+                "Indicador 3",
+                options=READY_SIGNAL_INDICATOR_OPTIONS,
+                key="ready_signal_indicator_3",
+            )
+
+        with st.expander("Indicador 4", expanded=False):
+            signal_indicator_4 = st.selectbox(
+                "Indicador 4",
+                options=READY_SIGNAL_INDICATOR_OPTIONS,
+                key="ready_signal_indicator_4",
+            )
 
     return {
         "signal_settings": {
             "indicator_1": signal_indicator_1,
+            "indicator_2": signal_indicator_2,
+            "indicator_3": signal_indicator_3,
+            "indicator_4": signal_indicator_4,
         },
         "band_channels": {
             "enabled": band_channels_enabled,
