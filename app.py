@@ -28,6 +28,7 @@ from infra.mt5_gateway import (
     initialize_mt5,
 )
 from ui.components import (
+    render_ajustes_finais,
     render_saidas_parciais,
     render_sinais_prontos,
     render_stop_loss,
@@ -307,6 +308,7 @@ main_tabs = st.tabs(
         "9. Trailing stop",
         "10. Saidas parciais",
         "11. Sinais",
+        "12. Ajustes finais",
     ]
 )
 
@@ -686,6 +688,10 @@ with main_tabs[10]:
 
     ready_signals_config = render_sinais_prontos()
 
+with main_tabs[11]:
+    with st.expander("Ajustes finais", expanded=False):
+        final_adjustments_config = render_ajustes_finais()
+
 risk_management = {
     "stop": stop_loss_config["target"],
     "take": take_profit_config["target"],
@@ -744,6 +750,7 @@ if save_clicked or show_clicked:
         "partial_exits_calculation_type": partial_exits_config["calculation_type"],
         "partial_exits_levels": partial_exits_config["levels"],
         "ready_signals": ready_signals_config,
+        "final_adjustments": final_adjustments_config,
         "primary_timeframe": primary_timeframe,
         "initial_volume": float(initial_volume),
         "max_spread": float(max_spread),

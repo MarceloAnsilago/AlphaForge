@@ -64,6 +64,53 @@ STOCHASTIC_TYPE_OPTIONS = [
     "Fechamento/Fechamento",
 ]
 SIGNAL_RULE_COUNT = 5
+FINAL_ADJUSTMENT_FIELDS = [
+    (
+        "cancel_pending_on_opposite_signal",
+        "Cancelar pendente de entrada se aparecer sinal oposto",
+        "Sim",
+    ),
+    (
+        "reposition_stop_loss_on_favorable_move",
+        "Reposicionar stoploss no aumento a favor da operacao",
+        "Sim",
+    ),
+    (
+        "reposition_take_profit_on_adverse_move",
+        "Reposicionar takeprofit no aumento contra a operacao",
+        "Sim",
+    ),
+    (
+        "move_stop_loss_based_on_average_price",
+        "Movimentar stoploss com base no preco medio",
+        "Sim",
+    ),
+    (
+        "move_take_profit_based_on_average_price",
+        "Movimentar takeprofit com base no preco medio",
+        "Sim",
+    ),
+    (
+        "use_average_price_for_partial_exits",
+        "Usar preco medio como referencia das parciais",
+        "Sim",
+    ),
+    (
+        "block_exit_signal_on_entry_candle",
+        "Impedir sinal de saida na vela que gerou entrada",
+        "Sim",
+    ),
+    (
+        "block_entry_signal_on_exit_candle",
+        "Impedir sinal de entrada na vela que gerou saida",
+        "Sim",
+    ),
+    (
+        "recalculate_average_price_from_partial_exits",
+        "Recalcular o preco medio com base nas saidas parciais",
+        "Nao",
+    ),
+]
 SIGNAL_LOGICAL_COMMAND_OPTIONS = [
     "SE",
     "E",
@@ -1992,6 +2039,33 @@ def render_saidas_parciais() -> dict:
         "calculation_type": partial_exits_calculation_type,
         "levels": partial_exits_levels,
     }
+
+
+def render_ajustes_finais() -> dict:
+    st.caption("Selecione algumas confirmacoes para os ajustes finais da estrategia.")
+
+    final_adjustments: dict[str, bool] = {}
+    with st.container(border=True):
+        for field_key, label, default_value in FINAL_ADJUSTMENT_FIELDS:
+            state_key = f"final_adjustment_{field_key}"
+            current_value = st.session_state.get(state_key)
+            if current_value not in YES_NO_OPTIONS:
+                st.session_state[state_key] = default_value
+
+            description_col, value_col = st.columns([5.4, 1.1])
+            with description_col:
+                st.markdown(label)
+            with value_col:
+                selected_value = st.selectbox(
+                    label,
+                    options=YES_NO_OPTIONS,
+                    key=state_key,
+                    label_visibility="collapsed",
+                )
+
+            final_adjustments[field_key] = selected_value == "Sim"
+
+    return final_adjustments
 
 
 def render_sinais_prontos() -> dict:
