@@ -40,6 +40,25 @@ STOP_PRICE_REFERENCE_OPTIONS = ["Maxima", "Minima", "Abertura", "Fechamento"]
 BAND_CHANNEL_INDICATOR_OPTIONS = ["BBANDS"]
 CROSSOVER_INDICATOR_OPTIONS = ["SMA", "EMA"]
 OVERBOUGHT_OVERSOLD_INDICATOR_OPTIONS = ["RSI", "CCI"]
+MA_TYPE_OPTIONS = [
+    "Simples (SMA)",
+    "Exponencial (EMA)",
+    "Suavizada (SMMA)",
+    "Linear-ponderada (LWMA)",
+]
+PRICE_MODE_OPTIONS = [
+    "Fechamento",
+    "Abertura",
+    "Maximo",
+    "Minimo",
+    "Mediano",
+    "Tipico",
+    "Medio",
+]
+VOLUME_TYPE_OPTIONS = [
+    "Volume de tick",
+    "Volume Real",
+]
 READY_SIGNAL_INDICATOR_OPTIONS = [
     "Nao usar",
     "Externo",
@@ -137,6 +156,471 @@ def _format_stop_reference_example(mode: str, candle_count: int, reference: str)
         return f"Ex.: media das {count_label} ultimas {reference_label}."
 
     return "Ex.: 1 = primeiro candle, 2 = segundo candle, 3 = terceiro candle."
+
+
+def _render_signal_indicator_1_parameters(selected_indicator: str) -> dict:
+    if selected_indicator == "Keltner":
+        period_col, ma_type_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=2,
+                step=1,
+                key="ready_signal_indicator_1_keltner_period",
+            )
+        with ma_type_col:
+            ma_type = st.selectbox(
+                "Tipo de media",
+                options=MA_TYPE_OPTIONS,
+                key="ready_signal_indicator_1_keltner_ma_type",
+            )
+        deviation = st.text_input(
+            "Desvios",
+            value="",
+            key="ready_signal_indicator_1_keltner_deviation",
+        )
+        return {
+            "period": int(period),
+            "deviation": deviation,
+            "ma_type": ma_type,
+        }
+
+    if selected_indicator == "Donchian":
+        period = st.number_input(
+            "Periodo",
+            min_value=1,
+            value=21,
+            step=1,
+            key="ready_signal_indicator_1_donchian_period",
+        )
+        return {
+            "period": int(period),
+        }
+
+    if selected_indicator == "Regressao":
+        period_col, ma_type_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=18,
+                step=1,
+                key="ready_signal_indicator_1_regression_period",
+            )
+        with ma_type_col:
+            ma_type = st.selectbox(
+                "Tipo de media",
+                options=MA_TYPE_OPTIONS,
+                key="ready_signal_indicator_1_regression_ma_type",
+            )
+        price_mode = st.selectbox(
+            "Modo de preco",
+            options=PRICE_MODE_OPTIONS,
+            key="ready_signal_indicator_1_regression_price_mode",
+        )
+        return {
+            "period": int(period),
+            "ma_type": ma_type,
+            "price_mode": price_mode,
+        }
+
+    if selected_indicator == "Afastamento da media":
+        period_col, displacement_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=14,
+                step=1,
+                key="ready_signal_indicator_1_deviation_period",
+            )
+        with displacement_col:
+            displacement = st.number_input(
+                "Deslocamento",
+                value=0,
+                step=1,
+                key="ready_signal_indicator_1_deviation_shift",
+            )
+        ma_type_col, price_mode_col = st.columns(2)
+        with ma_type_col:
+            ma_type = st.selectbox(
+                "Tipo de media",
+                options=MA_TYPE_OPTIONS,
+                key="ready_signal_indicator_1_deviation_ma_type",
+            )
+        with price_mode_col:
+            price_mode = st.selectbox(
+                "Modo de preco",
+                options=PRICE_MODE_OPTIONS,
+                key="ready_signal_indicator_1_deviation_price_mode",
+            )
+        return {
+            "period": int(period),
+            "displacement": int(displacement),
+            "ma_type": ma_type,
+            "price_mode": price_mode,
+        }
+
+    if selected_indicator == "Desvio Medio":
+        period_col, ma_type_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=2,
+                step=1,
+                key="ready_signal_indicator_1_mean_deviation_period",
+            )
+        with ma_type_col:
+            ma_type = st.selectbox(
+                "Tipo de media",
+                options=MA_TYPE_OPTIONS,
+                key="ready_signal_indicator_1_mean_deviation_ma_type",
+            )
+        price_mode = st.selectbox(
+            "Modo de preco",
+            options=PRICE_MODE_OPTIONS,
+            index=None,
+            placeholder="Selecione",
+            key="ready_signal_indicator_1_mean_deviation_price_mode",
+        )
+        return {
+            "period": int(period),
+            "ma_type": ma_type,
+            "price_mode": price_mode,
+        }
+
+    if selected_indicator == "Canal ATR":
+        period_col, deviation_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=14,
+                step=1,
+                key="ready_signal_indicator_1_atr_channel_period",
+            )
+        with deviation_col:
+            deviation = st.number_input(
+                "Desvios",
+                min_value=0.0,
+                value=2.0,
+                step=0.1,
+                key="ready_signal_indicator_1_atr_channel_deviation",
+            )
+        return {
+            "period": int(period),
+            "deviation": float(deviation),
+        }
+
+    if selected_indicator == "Media Movel":
+        period_col, displacement_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=21,
+                step=1,
+                key="ready_signal_indicator_1_moving_average_period",
+            )
+        with displacement_col:
+            displacement = st.number_input(
+                "Deslocamento",
+                value=0,
+                step=1,
+                key="ready_signal_indicator_1_moving_average_shift",
+            )
+        ma_type_col, price_mode_col = st.columns(2)
+        with ma_type_col:
+            ma_type = st.selectbox(
+                "Tipo de media",
+                options=MA_TYPE_OPTIONS,
+                key="ready_signal_indicator_1_moving_average_ma_type",
+            )
+        with price_mode_col:
+            price_mode = st.selectbox(
+                "Modo de preco",
+                options=PRICE_MODE_OPTIONS,
+                key="ready_signal_indicator_1_moving_average_price_mode",
+            )
+        return {
+            "period": int(period),
+            "displacement": int(displacement),
+            "ma_type": ma_type,
+            "price_mode": price_mode,
+        }
+
+    if selected_indicator == "Bandas de Bollinger":
+        period_col, deviation_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=20,
+                step=1,
+                key="ready_signal_indicator_1_bollinger_period",
+            )
+        with deviation_col:
+            deviation = st.number_input(
+                "Desvios",
+                min_value=0.0,
+                value=2.0,
+                step=0.1,
+                key="ready_signal_indicator_1_bollinger_deviation",
+            )
+        displacement_col, price_mode_col = st.columns(2)
+        with displacement_col:
+            displacement = st.number_input(
+                "Deslocamento",
+                value=0,
+                step=1,
+                key="ready_signal_indicator_1_bollinger_shift",
+            )
+        with price_mode_col:
+            price_mode = st.selectbox(
+                "Modo de preco",
+                options=PRICE_MODE_OPTIONS,
+                key="ready_signal_indicator_1_bollinger_price_mode",
+            )
+        return {
+            "period": int(period),
+            "deviation": float(deviation),
+            "displacement": int(displacement),
+            "price_mode": price_mode,
+        }
+
+    if selected_indicator == "MACD":
+        fast_ema_col, slow_ema_col = st.columns(2)
+        with fast_ema_col:
+            fast_ema = st.number_input(
+                "EMA rapida",
+                min_value=1,
+                value=2,
+                step=1,
+                key="ready_signal_indicator_1_macd_fast_ema",
+            )
+        with slow_ema_col:
+            slow_ema = st.text_input(
+                "EMA lenta",
+                value="",
+                key="ready_signal_indicator_1_macd_slow_ema",
+            )
+        signal_col, price_mode_col = st.columns(2)
+        with signal_col:
+            signal = st.text_input(
+                "Sinal",
+                value="",
+                key="ready_signal_indicator_1_macd_signal",
+            )
+        with price_mode_col:
+            price_mode = st.selectbox(
+                "Modo de preco",
+                options=PRICE_MODE_OPTIONS,
+                key="ready_signal_indicator_1_macd_price_mode",
+            )
+        return {
+            "fast_ema": int(fast_ema),
+            "slow_ema": slow_ema,
+            "signal": signal,
+            "price_mode": price_mode,
+        }
+
+    if selected_indicator == "Envelopes":
+        period_col, displacement_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=14,
+                step=1,
+                key="ready_signal_indicator_1_envelopes_period",
+            )
+        with displacement_col:
+            displacement = st.number_input(
+                "Deslocamento",
+                value=0,
+                step=1,
+                key="ready_signal_indicator_1_envelopes_shift",
+            )
+        ma_type_col, price_mode_col = st.columns(2)
+        with ma_type_col:
+            ma_type = st.selectbox(
+                "Tipo de media",
+                options=MA_TYPE_OPTIONS,
+                key="ready_signal_indicator_1_envelopes_ma_type",
+            )
+        with price_mode_col:
+            price_mode = st.selectbox(
+                "Modo de preco",
+                options=PRICE_MODE_OPTIONS,
+                key="ready_signal_indicator_1_envelopes_price_mode",
+            )
+        deviation = st.number_input(
+            "Desvios",
+            min_value=0.0,
+            value=1.0,
+            step=0.1,
+            key="ready_signal_indicator_1_envelopes_deviation",
+        )
+        return {
+            "period": int(period),
+            "displacement": int(displacement),
+            "ma_type": ma_type,
+            "price_mode": price_mode,
+            "deviation": float(deviation),
+        }
+
+    if selected_indicator == "RSI (Relative Strength Index)":
+        period_col, price_mode_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=14,
+                step=1,
+                key="ready_signal_indicator_1_rsi_period",
+            )
+        with price_mode_col:
+            price_mode = st.selectbox(
+                "Modo de preco",
+                options=PRICE_MODE_OPTIONS,
+                key="ready_signal_indicator_1_rsi_price_mode",
+            )
+        return {
+            "period": int(period),
+            "price_mode": price_mode,
+        }
+
+    if selected_indicator == "Desvio Padrao":
+        period_col, displacement_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=2,
+                step=1,
+                key="ready_signal_indicator_1_stddev_period",
+            )
+        with displacement_col:
+            displacement = st.text_input(
+                "Deslocamento",
+                value="",
+                key="ready_signal_indicator_1_stddev_shift",
+            )
+        ma_type_col, price_mode_col = st.columns(2)
+        with ma_type_col:
+            ma_type = st.selectbox(
+                "Tipo de media",
+                options=MA_TYPE_OPTIONS,
+                key="ready_signal_indicator_1_stddev_ma_type",
+            )
+        with price_mode_col:
+            price_mode = st.selectbox(
+                "Modo de preco",
+                options=PRICE_MODE_OPTIONS,
+                key="ready_signal_indicator_1_stddev_price_mode",
+            )
+        return {
+            "period": int(period),
+            "displacement": displacement,
+            "ma_type": ma_type,
+            "price_mode": price_mode,
+        }
+
+    if selected_indicator == "Volume":
+        volume_type = st.selectbox(
+            "Tipo",
+            options=VOLUME_TYPE_OPTIONS,
+            key="ready_signal_indicator_1_volume_type",
+        )
+        return {
+            "type": volume_type,
+        }
+
+    if selected_indicator == "ATR (Average True Range)":
+        period = st.number_input(
+            "Periodo",
+            min_value=1,
+            value=14,
+            step=1,
+            key="ready_signal_indicator_1_atr_period",
+        )
+        return {
+            "period": int(period),
+        }
+
+    if selected_indicator == "Parabolic SAR":
+        step_col, maximum_col = st.columns(2)
+        with step_col:
+            step_value = st.number_input(
+                "Passo",
+                min_value=0.0,
+                value=0.02,
+                step=0.01,
+                format="%.2f",
+                key="ready_signal_indicator_1_parabolic_sar_step",
+            )
+        with maximum_col:
+            maximum_value = st.number_input(
+                "Maximo",
+                min_value=0.0,
+                value=0.2,
+                step=0.1,
+                format="%.1f",
+                key="ready_signal_indicator_1_parabolic_sar_maximum",
+            )
+        return {
+            "step": float(step_value),
+            "maximum": float(maximum_value),
+        }
+
+    if selected_indicator == "Fractal":
+        st.caption("Fractal nao requer parametros.")
+        return {}
+
+    if selected_indicator == "OBV (On Balance Volume)":
+        volume_type = st.selectbox(
+            "Volume",
+            options=VOLUME_TYPE_OPTIONS,
+            key="ready_signal_indicator_1_obv_volume_type",
+        )
+        return {
+            "volume_type": volume_type,
+        }
+
+    if selected_indicator == "Acumulacao/Distribuicao (A/D)":
+        volume_type = st.selectbox(
+            "Volume",
+            options=VOLUME_TYPE_OPTIONS,
+            key="ready_signal_indicator_1_ad_volume_type",
+        )
+        return {
+            "volume_type": volume_type,
+        }
+
+    if selected_indicator == "MFI (Money Flow Index)":
+        period_col, volume_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=14,
+                step=1,
+                key="ready_signal_indicator_1_mfi_period",
+            )
+        with volume_col:
+            volume_type = st.selectbox(
+                "Volume",
+                options=VOLUME_TYPE_OPTIONS,
+                key="ready_signal_indicator_1_mfi_volume_type",
+            )
+        return {
+            "period": int(period),
+            "volume_type": volume_type,
+        }
+
+    return {}
 
 
 def _render_stop_reference_note() -> None:
@@ -681,6 +1165,7 @@ def render_saidas_parciais() -> dict:
 
 def render_sinais_prontos() -> dict:
     signal_indicator_1 = READY_SIGNAL_INDICATOR_OPTIONS[0]
+    signal_indicator_1_parameters = {}
     signal_indicator_2 = READY_SIGNAL_INDICATOR_OPTIONS[0]
     signal_indicator_3 = READY_SIGNAL_INDICATOR_OPTIONS[0]
     signal_indicator_4 = READY_SIGNAL_INDICATOR_OPTIONS[0]
@@ -866,6 +1351,9 @@ def render_sinais_prontos() -> dict:
                 options=READY_SIGNAL_INDICATOR_OPTIONS,
                 key="ready_signal_indicator_1",
             )
+            signal_indicator_1_parameters = _render_signal_indicator_1_parameters(
+                signal_indicator_1
+            )
 
         with st.expander("Indicador 2", expanded=False):
             signal_indicator_2 = st.selectbox(
@@ -891,6 +1379,7 @@ def render_sinais_prontos() -> dict:
     return {
         "signal_settings": {
             "indicator_1": signal_indicator_1,
+            "indicator_1_parameters": signal_indicator_1_parameters,
             "indicator_2": signal_indicator_2,
             "indicator_3": signal_indicator_3,
             "indicator_4": signal_indicator_4,
