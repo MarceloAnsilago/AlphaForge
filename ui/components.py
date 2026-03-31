@@ -37,7 +37,13 @@ RIGHT_OPERAND_TYPES = {
 STOP_MEDIA_REFERENCE_OPTIONS = ["Maxima", "Minima", "Abertura", "Fechamento"]
 STOP_MULTIPLY_REFERENCE_OPTIONS = ["Corpo", "Pavios"]
 STOP_PRICE_REFERENCE_OPTIONS = ["Maxima", "Minima", "Abertura", "Fechamento"]
-BAND_CHANNEL_INDICATOR_OPTIONS = ["BBANDS"]
+BAND_CHANNEL_INDICATOR_OPTIONS = [
+    "Bandas de Bollinger",
+    "Envelopes",
+    "Keltner",
+    "Donchian",
+    "Canal ATR",
+]
 CROSSOVER_INDICATOR_OPTIONS = ["SMA", "EMA"]
 OVERBOUGHT_OVERSOLD_INDICATOR_OPTIONS = ["RSI", "CCI"]
 MA_TYPE_OPTIONS = [
@@ -252,6 +258,171 @@ SIGNAL_INDICATOR_OUTPUT_LABELS = {
     "Momentum": ["Valor"],
     "RVI (Relative Vigor Index)": ["RVI", "Sinal"],
 }
+
+BAND_CHANNEL_SIGNAL_OPTIONS = [
+    "Fechou fora",
+    "Fechou dentro e saiu",
+    "Fechou dentro e fechou fora",
+    "Fechou fora e voltou",
+    "Fechou fora e fechou dentro",
+    "Estando fora",
+]
+
+
+def _normalize_band_channel_indicator(value: str | None) -> str:
+    if value == "BBANDS":
+        return "Bandas de Bollinger"
+    if value in BAND_CHANNEL_INDICATOR_OPTIONS:
+        return str(value)
+    return BAND_CHANNEL_INDICATOR_OPTIONS[0]
+
+
+def _default_band_channel_parameters(indicator_name: str) -> dict:
+    if indicator_name == "Envelopes":
+        return {
+            "period": 14,
+            "deviation": 1.0,
+            "displacement": 0,
+            "ma_type": MA_TYPE_OPTIONS[0],
+            "price_mode": PRICE_MODE_OPTIONS[0],
+        }
+    if indicator_name == "Keltner":
+        return {
+            "period": 20,
+            "deviation": 2.0,
+            "ma_type": "Exponencial (EMA)",
+        }
+    if indicator_name == "Donchian":
+        return {
+            "period": 21,
+        }
+    if indicator_name == "Canal ATR":
+        return {
+            "period": 14,
+            "deviation": 2.0,
+            "price_mode": PRICE_MODE_OPTIONS[0],
+        }
+    return {
+        "period": 20,
+        "deviation": 2.0,
+        "displacement": 0,
+        "price_mode": PRICE_MODE_OPTIONS[0],
+    }
+
+
+def _render_band_channel_parameters(indicator_name: str) -> dict:
+    defaults = _default_band_channel_parameters(indicator_name)
+
+    if indicator_name == "Donchian":
+        period = st.number_input(
+            "Periodo",
+            min_value=1,
+            value=int(defaults["period"]),
+            step=1,
+            key="ready_band_channels_period",
+        )
+        return {
+            "period": int(period),
+        }
+
+    if indicator_name == "Keltner":
+        period_col, deviation_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=int(defaults["period"]),
+                step=1,
+                key="ready_band_channels_period",
+            )
+        with deviation_col:
+            deviation = st.number_input(
+                "Desvio",
+                min_value=0.1,
+                value=float(defaults["deviation"]),
+                step=0.1,
+                key="ready_band_channels_deviation",
+            )
+        ma_type = st.selectbox(
+            "Tipo de media",
+            options=MA_TYPE_OPTIONS,
+            index=MA_TYPE_OPTIONS.index(str(defaults["ma_type"])),
+            key="ready_band_channels_ma_type",
+        )
+        return {
+            "period": int(period),
+            "deviation": float(deviation),
+            "ma_type": ma_type,
+        }
+
+    period_col, deviation_col = st.columns(2)
+    with period_col:
+        period = st.number_input(
+            "Periodo",
+            min_value=1,
+            value=int(defaults["period"]),
+            step=1,
+            key="ready_band_channels_period",
+        )
+    with deviation_col:
+        deviation = st.number_input(
+            "Desvio",
+            min_value=0.1,
+            value=float(defaults["deviation"]),
+            step=0.1,
+            key="ready_band_channels_deviation",
+        )
+
+    if indicator_name == "Canal ATR":
+        price_mode = st.selectbox(
+            "Modo de preco",
+            options=PRICE_MODE_OPTIONS,
+            index=PRICE_MODE_OPTIONS.index(str(defaults["price_mode"])),
+            key="ready_band_channels_price_mode",
+        )
+        return {
+            "period": int(period),
+            "deviation": float(deviation),
+            "price_mode": price_mode,
+        }
+
+    displacement_col, price_mode_col = st.columns(2)
+    with displacement_col:
+        displacement = st.number_input(
+            "Deslocamento",
+            value=int(defaults["displacement"]),
+            step=1,
+            key="ready_band_channels_displacement",
+        )
+    with price_mode_col:
+        price_mode = st.selectbox(
+            "Modo de preco",
+            options=PRICE_MODE_OPTIONS,
+            index=PRICE_MODE_OPTIONS.index(str(defaults["price_mode"])),
+            key="ready_band_channels_price_mode",
+        )
+
+    if indicator_name == "Envelopes":
+        ma_type = st.selectbox(
+            "Tipo de media",
+            options=MA_TYPE_OPTIONS,
+            index=MA_TYPE_OPTIONS.index(str(defaults["ma_type"])),
+            key="ready_band_channels_ma_type",
+        )
+        return {
+            "period": int(period),
+            "deviation": float(deviation),
+            "displacement": int(displacement),
+            "ma_type": ma_type,
+            "price_mode": price_mode,
+        }
+
+    return {
+        "period": int(period),
+        "deviation": float(deviation),
+        "displacement": int(displacement),
+        "price_mode": price_mode,
+    }
 
 
 def _format_distance_type(value: str) -> str:
@@ -2081,16 +2252,7 @@ def render_sinais_prontos() -> dict:
     band_channels_signal = "Nao usar"
     band_channels_enabled = False
     band_channels_indicator = BAND_CHANNEL_INDICATOR_OPTIONS[0]
-    band_channels_period = 20
-    band_channels_deviation = 2.0
-    band_channels_signal_options = [
-        "Fechou fora",
-        "Fechou dentro e saiu",
-        "Fechou dentro e fechou fora",
-        "Fechou fora e voltou",
-        "Fechou fora e fechou dentro",
-        "Estando fora",
-    ]
+    band_channels_parameters = _default_band_channel_parameters(band_channels_indicator)
 
     crossover_enabled = False
     crossover_fast_indicator = CROSSOVER_INDICATOR_OPTIONS[0]
@@ -2107,6 +2269,11 @@ def render_sinais_prontos() -> dict:
     oversold_level = 30
 
     with st.expander("Canais de bandas", expanded=False):
+        current_band_indicator = _normalize_band_channel_indicator(
+            st.session_state.get("ready_band_channels_indicator")
+        )
+        st.session_state["ready_band_channels_indicator"] = current_band_indicator
+
         band_channels_enabled = (
             st.radio(
                 "Usar sinal de canais de bandas?",
@@ -2119,35 +2286,17 @@ def render_sinais_prontos() -> dict:
         if band_channels_enabled:
             band_channels_signal = st.selectbox(
                 "Sinais",
-                options=band_channels_signal_options,
+                options=BAND_CHANNEL_SIGNAL_OPTIONS,
                 key="ready_band_channels_signal_option",
             )
-            indicator_col, period_col = st.columns(2)
-            with indicator_col:
-                band_channels_indicator = st.selectbox(
-                    "Indicador",
-                    options=BAND_CHANNEL_INDICATOR_OPTIONS,
-                    key="ready_band_channels_indicator",
-                )
-            with period_col:
-                band_channels_period = st.number_input(
-                    "Periodo",
-                    min_value=1,
-                    value=20,
-                    step=1,
-                    key="ready_band_channels_period",
-                )
-            deviation_col, signal_col = st.columns(2)
-            with deviation_col:
-                band_channels_deviation = st.number_input(
-                    "Desvio",
-                    min_value=0.1,
-                    value=2.0,
-                    step=0.1,
-                    key="ready_band_channels_deviation",
-                )
-            with signal_col:
-                st.caption(f"Sinal selecionado: {band_channels_signal}")
+            band_channels_indicator = st.selectbox(
+                "Indicador",
+                options=BAND_CHANNEL_INDICATOR_OPTIONS,
+                key="ready_band_channels_indicator",
+            )
+            band_channels_indicator = _normalize_band_channel_indicator(band_channels_indicator)
+            band_channels_parameters = _render_band_channel_parameters(band_channels_indicator)
+            st.caption(f"Sinal selecionado: {band_channels_signal}")
 
     with st.expander("Cruzamentos", expanded=False):
         crossover_enabled = (
@@ -2346,8 +2495,9 @@ def render_sinais_prontos() -> dict:
         "band_channels": {
             "enabled": band_channels_enabled,
             "indicator": band_channels_indicator,
-            "period": int(band_channels_period),
-            "deviation": float(band_channels_deviation),
+            "parameters": band_channels_parameters,
+            "period": int(band_channels_parameters.get("period", 20)),
+            "deviation": float(band_channels_parameters.get("deviation", 2.0)),
             "signal": band_channels_signal,
         },
         "crossovers": {

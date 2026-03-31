@@ -438,13 +438,49 @@ def _build_band_channel_rules(
             "Fechou fora e fechou dentro": "Fechou dentro e saiu",
         }.get(signal_label, signal_label)
 
-    parameters = {
-        "period": int(band_config.get("period", 20)),
-        "deviation": float(band_config.get("deviation", 2.0)),
-        "price_mode": "Fechamento",
-        "displacement": 0,
-    }
-    indicator_name = "BBANDS" if band_config.get("indicator") == "BBANDS" else band_config.get("indicator")
+    indicator_name = band_config.get("indicator", "Bandas de Bollinger")
+    if indicator_name == "BBANDS":
+        indicator_name = "Bandas de Bollinger"
+
+    parameters = deepcopy(band_config.get("parameters", {}))
+    if not parameters:
+        parameters = {
+            "period": int(band_config.get("period", 20)),
+            "deviation": float(band_config.get("deviation", 2.0)),
+        }
+
+    if indicator_name == "Donchian":
+        parameters = {
+            "period": int(parameters.get("period", band_config.get("period", 21))),
+        }
+    elif indicator_name == "Keltner":
+        parameters = {
+            "period": int(parameters.get("period", band_config.get("period", 20))),
+            "deviation": float(parameters.get("deviation", band_config.get("deviation", 2.0))),
+            "ma_type": parameters.get("ma_type", "Exponencial (EMA)"),
+        }
+    elif indicator_name == "Canal ATR":
+        parameters = {
+            "period": int(parameters.get("period", band_config.get("period", 14))),
+            "deviation": float(parameters.get("deviation", band_config.get("deviation", 2.0))),
+            "price_mode": parameters.get("price_mode", "Fechamento"),
+        }
+    elif indicator_name == "Envelopes":
+        parameters = {
+            "period": int(parameters.get("period", band_config.get("period", 14))),
+            "deviation": float(parameters.get("deviation", band_config.get("deviation", 1.0))),
+            "displacement": int(parameters.get("displacement", 0)),
+            "ma_type": parameters.get("ma_type", "Simples (SMA)"),
+            "price_mode": parameters.get("price_mode", "Fechamento"),
+        }
+    else:
+        parameters = {
+            "period": int(parameters.get("period", band_config.get("period", 20))),
+            "deviation": float(parameters.get("deviation", band_config.get("deviation", 2.0))),
+            "displacement": int(parameters.get("displacement", 0)),
+            "price_mode": parameters.get("price_mode", "Fechamento"),
+        }
+
     return _build_bands_inside_outside_rules(
         indicator_name=indicator_name,
         parameters=parameters,
