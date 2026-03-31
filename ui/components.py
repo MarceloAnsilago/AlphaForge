@@ -45,7 +45,22 @@ BAND_CHANNEL_INDICATOR_OPTIONS = [
     "Canal ATR",
 ]
 CROSSOVER_INDICATOR_OPTIONS = ["SMA", "EMA"]
-OVERBOUGHT_OVERSOLD_INDICATOR_OPTIONS = ["RSI", "CCI"]
+OVERBOUGHT_OVERSOLD_INDICATOR_OPTIONS = [
+    "MACD",
+    "Estocastico",
+    "RSI (Relative Strength Index)",
+    "MFI (Money Flow Index)",
+    "Bears Power",
+    "Bulls Power",
+    "Chaikin Oscilador",
+    "Accelerator Oscillator",
+    "Awesome Oscillator",
+    "CCI (Commodity Channel Index)",
+    "DeMarker",
+    "Regressao",
+    "Afastamento da media",
+    "Desvio Medio",
+]
 MA_TYPE_OPTIONS = [
     "Simples (SMA)",
     "Exponencial (EMA)",
@@ -423,6 +438,447 @@ def _render_band_channel_parameters(indicator_name: str) -> dict:
         "displacement": int(displacement),
         "price_mode": price_mode,
     }
+
+
+def _normalize_overbought_oversold_indicator(value: str | None) -> str:
+    aliases = {
+        "RSI": "RSI (Relative Strength Index)",
+        "CCI": "CCI (Commodity Channel Index)",
+        "Accelerator Oscilador": "Accelerator Oscillator",
+        "Awesome Oscilador": "Awesome Oscillator",
+        "Commodity Channel Index (CCI)": "CCI (Commodity Channel Index)",
+        "Money Flow Index (MFI)": "MFI (Money Flow Index)",
+        "Regressao Linear": "Regressao",
+    }
+    normalized_value = aliases.get(str(value), value)
+    if normalized_value in OVERBOUGHT_OVERSOLD_INDICATOR_OPTIONS:
+        return str(normalized_value)
+    return OVERBOUGHT_OVERSOLD_INDICATOR_OPTIONS[0]
+
+
+def _default_overbought_oversold_output(indicator_name: str) -> str:
+    output_labels = SIGNAL_INDICATOR_OUTPUT_LABELS.get(indicator_name, ["Valor"])
+    return output_labels[0]
+
+
+def _default_overbought_oversold_parameters(indicator_name: str) -> dict:
+    if indicator_name == "MACD":
+        return {
+            "fast_ema": 12,
+            "slow_ema": 26,
+            "signal": 9,
+            "price_mode": PRICE_MODE_OPTIONS[0],
+        }
+    if indicator_name == "Estocastico":
+        return {
+            "k_period": 5,
+            "d_period": 3,
+            "slowing": 3,
+            "ma_type": MA_TYPE_OPTIONS[0],
+            "stochastic_type": STOCHASTIC_TYPE_OPTIONS[0],
+        }
+    if indicator_name == "RSI (Relative Strength Index)":
+        return {
+            "period": 14,
+            "price_mode": PRICE_MODE_OPTIONS[0],
+        }
+    if indicator_name == "MFI (Money Flow Index)":
+        return {
+            "period": 14,
+            "volume_type": VOLUME_TYPE_OPTIONS[0],
+        }
+    if indicator_name in {"Bears Power", "Bulls Power", "DeMarker"}:
+        return {
+            "period": 13 if indicator_name in {"Bears Power", "Bulls Power"} else 14,
+        }
+    if indicator_name == "Chaikin Oscilador":
+        return {
+            "fast_ma": 3,
+            "slow_ma": 10,
+            "ma_type": MA_TYPE_OPTIONS[0],
+            "volume_type": VOLUME_TYPE_OPTIONS[0],
+        }
+    if indicator_name in {"Accelerator Oscillator", "Awesome Oscillator"}:
+        return {}
+    if indicator_name == "CCI (Commodity Channel Index)":
+        return {
+            "period": 14,
+            "price_mode": PRICE_MODE_OPTIONS[0],
+        }
+    if indicator_name == "Regressao":
+        return {
+            "period": 18,
+            "ma_type": MA_TYPE_OPTIONS[0],
+            "price_mode": PRICE_MODE_OPTIONS[0],
+        }
+    if indicator_name == "Afastamento da media":
+        return {
+            "period": 14,
+            "displacement": 0,
+            "ma_type": MA_TYPE_OPTIONS[0],
+            "price_mode": PRICE_MODE_OPTIONS[0],
+        }
+    if indicator_name == "Desvio Medio":
+        return {
+            "period": 14,
+            "ma_type": MA_TYPE_OPTIONS[0],
+            "price_mode": PRICE_MODE_OPTIONS[0],
+        }
+    return {}
+
+
+def _default_overbought_oversold_levels(indicator_name: str) -> tuple[float, float]:
+    if indicator_name == "Estocastico":
+        return 80.0, 20.0
+    if indicator_name == "MFI (Money Flow Index)":
+        return 80.0, 20.0
+    if indicator_name == "DeMarker":
+        return 0.7, 0.3
+    if indicator_name == "CCI (Commodity Channel Index)":
+        return 100.0, -100.0
+    if indicator_name in {
+        "MACD",
+        "Bears Power",
+        "Bulls Power",
+        "Chaikin Oscilador",
+        "Accelerator Oscillator",
+        "Awesome Oscillator",
+        "Regressao",
+        "Afastamento da media",
+        "Desvio Medio",
+    }:
+        return 1.0, -1.0
+    return 70.0, 30.0
+
+
+def _render_overbought_oversold_parameters(indicator_name: str) -> tuple[dict, str]:
+    defaults = _default_overbought_oversold_parameters(indicator_name)
+    output_labels = SIGNAL_INDICATOR_OUTPUT_LABELS.get(indicator_name, ["Valor"])
+    default_output = _default_overbought_oversold_output(indicator_name)
+    current_output = st.session_state.get("ready_overbought_oversold_output", default_output)
+    if current_output not in output_labels:
+        st.session_state["ready_overbought_oversold_output"] = default_output
+
+    selected_output = (
+        st.selectbox(
+            "Saida",
+            options=output_labels,
+            index=output_labels.index(default_output),
+            key="ready_overbought_oversold_output",
+        )
+        if len(output_labels) > 1
+        else default_output
+    )
+
+    if indicator_name == "MACD":
+        fast_ema_col, slow_ema_col = st.columns(2)
+        with fast_ema_col:
+            fast_ema = st.number_input(
+                "EMA rapida",
+                min_value=1,
+                value=int(defaults["fast_ema"]),
+                step=1,
+                key="ready_overbought_oversold_macd_fast_ema",
+            )
+        with slow_ema_col:
+            slow_ema = st.number_input(
+                "EMA lenta",
+                min_value=1,
+                value=int(defaults["slow_ema"]),
+                step=1,
+                key="ready_overbought_oversold_macd_slow_ema",
+            )
+        signal_col, price_mode_col = st.columns(2)
+        with signal_col:
+            signal = st.number_input(
+                "Sinal",
+                min_value=1,
+                value=int(defaults["signal"]),
+                step=1,
+                key="ready_overbought_oversold_macd_signal",
+            )
+        with price_mode_col:
+            price_mode = st.selectbox(
+                "Modo de preco",
+                options=PRICE_MODE_OPTIONS,
+                index=PRICE_MODE_OPTIONS.index(str(defaults["price_mode"])),
+                key="ready_overbought_oversold_macd_price_mode",
+            )
+        return {
+            "fast_ema": int(fast_ema),
+            "slow_ema": int(slow_ema),
+            "signal": int(signal),
+            "price_mode": price_mode,
+        }, selected_output
+
+    if indicator_name == "Estocastico":
+        k_period_col, d_period_col = st.columns(2)
+        with k_period_col:
+            k_period = st.number_input(
+                "K Periodo",
+                min_value=1,
+                value=int(defaults["k_period"]),
+                step=1,
+                key="ready_overbought_oversold_stochastic_k_period",
+            )
+        with d_period_col:
+            d_period = st.number_input(
+                "D Periodo",
+                min_value=1,
+                value=int(defaults["d_period"]),
+                step=1,
+                key="ready_overbought_oversold_stochastic_d_period",
+            )
+        slowing_col, ma_type_col = st.columns(2)
+        with slowing_col:
+            slowing = st.number_input(
+                "Lentidao",
+                min_value=1,
+                value=int(defaults["slowing"]),
+                step=1,
+                key="ready_overbought_oversold_stochastic_slowing",
+            )
+        with ma_type_col:
+            ma_type = st.selectbox(
+                "Tipo de media",
+                options=MA_TYPE_OPTIONS,
+                index=MA_TYPE_OPTIONS.index(str(defaults["ma_type"])),
+                key="ready_overbought_oversold_stochastic_ma_type",
+            )
+        stochastic_type = st.selectbox(
+            "Tipo estocastico",
+            options=STOCHASTIC_TYPE_OPTIONS,
+            index=STOCHASTIC_TYPE_OPTIONS.index(str(defaults["stochastic_type"])),
+            key="ready_overbought_oversold_stochastic_type",
+        )
+        return {
+            "k_period": int(k_period),
+            "d_period": int(d_period),
+            "slowing": int(slowing),
+            "ma_type": ma_type,
+            "stochastic_type": stochastic_type,
+        }, selected_output
+
+    if indicator_name == "RSI (Relative Strength Index)":
+        period_col, price_mode_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=int(defaults["period"]),
+                step=1,
+                key="ready_overbought_oversold_rsi_period",
+            )
+        with price_mode_col:
+            price_mode = st.selectbox(
+                "Modo de preco",
+                options=PRICE_MODE_OPTIONS,
+                index=PRICE_MODE_OPTIONS.index(str(defaults["price_mode"])),
+                key="ready_overbought_oversold_rsi_price_mode",
+            )
+        return {
+            "period": int(period),
+            "price_mode": price_mode,
+        }, selected_output
+
+    if indicator_name == "MFI (Money Flow Index)":
+        period_col, volume_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=int(defaults["period"]),
+                step=1,
+                key="ready_overbought_oversold_mfi_period",
+            )
+        with volume_col:
+            volume_type = st.selectbox(
+                "Volume",
+                options=VOLUME_TYPE_OPTIONS,
+                index=VOLUME_TYPE_OPTIONS.index(str(defaults["volume_type"])),
+                key="ready_overbought_oversold_mfi_volume_type",
+            )
+        return {
+            "period": int(period),
+            "volume_type": volume_type,
+        }, selected_output
+
+    if indicator_name in {"Bears Power", "Bulls Power", "DeMarker"}:
+        period = st.number_input(
+            "Periodo",
+            min_value=1,
+            value=int(defaults["period"]),
+            step=1,
+            key=f"ready_overbought_oversold_{indicator_name.lower().replace(' ', '_')}_period",
+        )
+        return {
+            "period": int(period),
+        }, selected_output
+
+    if indicator_name == "Chaikin Oscilador":
+        fast_ma_col, slow_ma_col = st.columns(2)
+        with fast_ma_col:
+            fast_ma = st.number_input(
+                "Media rapida",
+                min_value=1,
+                value=int(defaults["fast_ma"]),
+                step=1,
+                key="ready_overbought_oversold_chaikin_fast_ma",
+            )
+        with slow_ma_col:
+            slow_ma = st.number_input(
+                "Media lenta",
+                min_value=1,
+                value=int(defaults["slow_ma"]),
+                step=1,
+                key="ready_overbought_oversold_chaikin_slow_ma",
+            )
+        ma_type_col, volume_type_col = st.columns(2)
+        with ma_type_col:
+            ma_type = st.selectbox(
+                "Tipo de media",
+                options=MA_TYPE_OPTIONS,
+                index=MA_TYPE_OPTIONS.index(str(defaults["ma_type"])),
+                key="ready_overbought_oversold_chaikin_ma_type",
+            )
+        with volume_type_col:
+            volume_type = st.selectbox(
+                "Volume",
+                options=VOLUME_TYPE_OPTIONS,
+                index=VOLUME_TYPE_OPTIONS.index(str(defaults["volume_type"])),
+                key="ready_overbought_oversold_chaikin_volume_type",
+            )
+        return {
+            "fast_ma": int(fast_ma),
+            "slow_ma": int(slow_ma),
+            "ma_type": ma_type,
+            "volume_type": volume_type,
+        }, selected_output
+
+    if indicator_name in {"Accelerator Oscillator", "Awesome Oscillator"}:
+        st.caption(f"{indicator_name} nao requer parametros.")
+        return {}, selected_output
+
+    if indicator_name == "CCI (Commodity Channel Index)":
+        period_col, price_mode_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=int(defaults["period"]),
+                step=1,
+                key="ready_overbought_oversold_cci_period",
+            )
+        with price_mode_col:
+            price_mode = st.selectbox(
+                "Modo de preco",
+                options=PRICE_MODE_OPTIONS,
+                index=PRICE_MODE_OPTIONS.index(str(defaults["price_mode"])),
+                key="ready_overbought_oversold_cci_price_mode",
+            )
+        return {
+            "period": int(period),
+            "price_mode": price_mode,
+        }, selected_output
+
+    if indicator_name == "Regressao":
+        period_col, ma_type_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=int(defaults["period"]),
+                step=1,
+                key="ready_overbought_oversold_regression_period",
+            )
+        with ma_type_col:
+            ma_type = st.selectbox(
+                "Tipo de media",
+                options=MA_TYPE_OPTIONS,
+                index=MA_TYPE_OPTIONS.index(str(defaults["ma_type"])),
+                key="ready_overbought_oversold_regression_ma_type",
+            )
+        price_mode = st.selectbox(
+            "Modo de preco",
+            options=PRICE_MODE_OPTIONS,
+            index=PRICE_MODE_OPTIONS.index(str(defaults["price_mode"])),
+            key="ready_overbought_oversold_regression_price_mode",
+        )
+        return {
+            "period": int(period),
+            "ma_type": ma_type,
+            "price_mode": price_mode,
+        }, selected_output
+
+    if indicator_name == "Afastamento da media":
+        period_col, displacement_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=int(defaults["period"]),
+                step=1,
+                key="ready_overbought_oversold_deviation_period",
+            )
+        with displacement_col:
+            displacement = st.number_input(
+                "Deslocamento",
+                value=int(defaults["displacement"]),
+                step=1,
+                key="ready_overbought_oversold_deviation_shift",
+            )
+        ma_type_col, price_mode_col = st.columns(2)
+        with ma_type_col:
+            ma_type = st.selectbox(
+                "Tipo de media",
+                options=MA_TYPE_OPTIONS,
+                index=MA_TYPE_OPTIONS.index(str(defaults["ma_type"])),
+                key="ready_overbought_oversold_deviation_ma_type",
+            )
+        with price_mode_col:
+            price_mode = st.selectbox(
+                "Modo de preco",
+                options=PRICE_MODE_OPTIONS,
+                index=PRICE_MODE_OPTIONS.index(str(defaults["price_mode"])),
+                key="ready_overbought_oversold_deviation_price_mode",
+            )
+        return {
+            "period": int(period),
+            "displacement": int(displacement),
+            "ma_type": ma_type,
+            "price_mode": price_mode,
+        }, selected_output
+
+    if indicator_name == "Desvio Medio":
+        period_col, ma_type_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=int(defaults["period"]),
+                step=1,
+                key="ready_overbought_oversold_mean_deviation_period",
+            )
+        with ma_type_col:
+            ma_type = st.selectbox(
+                "Tipo de media",
+                options=MA_TYPE_OPTIONS,
+                index=MA_TYPE_OPTIONS.index(str(defaults["ma_type"])),
+                key="ready_overbought_oversold_mean_deviation_ma_type",
+            )
+        price_mode = st.selectbox(
+            "Modo de preco",
+            options=PRICE_MODE_OPTIONS,
+            index=PRICE_MODE_OPTIONS.index(str(defaults["price_mode"])),
+            key="ready_overbought_oversold_mean_deviation_price_mode",
+        )
+        return {
+            "period": int(period),
+            "ma_type": ma_type,
+            "price_mode": price_mode,
+        }, selected_output
+
+    return {}, selected_output
 
 
 def _format_distance_type(value: str) -> str:
@@ -2264,9 +2720,15 @@ def render_sinais_prontos() -> dict:
     overbought_oversold_signal = "Nao usar"
     overbought_oversold_enabled = False
     overbought_oversold_indicator = OVERBOUGHT_OVERSOLD_INDICATOR_OPTIONS[0]
-    overbought_oversold_period = 14
-    overbought_level = 70
-    oversold_level = 30
+    overbought_oversold_parameters = _default_overbought_oversold_parameters(
+        overbought_oversold_indicator
+    )
+    overbought_oversold_output = _default_overbought_oversold_output(
+        overbought_oversold_indicator
+    )
+    overbought_level, oversold_level = _default_overbought_oversold_levels(
+        overbought_oversold_indicator
+    )
 
     with st.expander("Canais de bandas", expanded=False):
         current_band_indicator = _normalize_band_channel_indicator(
@@ -2351,6 +2813,11 @@ def render_sinais_prontos() -> dict:
             )
 
     with st.expander("Sobre comprado/vendido", expanded=False):
+        current_overbought_indicator = _normalize_overbought_oversold_indicator(
+            st.session_state.get("ready_overbought_oversold_indicator")
+        )
+        st.session_state["ready_overbought_oversold_indicator"] = current_overbought_indicator
+
         overbought_oversold_signal = st.selectbox(
             "Condicao",
             options=[
@@ -2366,41 +2833,48 @@ def render_sinais_prontos() -> dict:
         )
         overbought_oversold_enabled = overbought_oversold_signal != "Nao usar"
         if overbought_oversold_enabled:
-            indicator_col, period_col = st.columns(2)
-            with indicator_col:
-                overbought_oversold_indicator = st.selectbox(
-                    "Indicador",
-                    options=OVERBOUGHT_OVERSOLD_INDICATOR_OPTIONS,
-                    key="ready_overbought_oversold_indicator",
-                )
-            with period_col:
-                overbought_oversold_period = st.number_input(
-                    "Periodo",
-                    min_value=1,
-                    value=14,
-                    step=1,
-                    key="ready_overbought_oversold_period",
-                )
+            overbought_oversold_indicator = st.selectbox(
+                "Indicador",
+                options=OVERBOUGHT_OVERSOLD_INDICATOR_OPTIONS,
+                key="ready_overbought_oversold_indicator",
+            )
+            overbought_oversold_indicator = _normalize_overbought_oversold_indicator(
+                overbought_oversold_indicator
+            )
+            overbought_oversold_parameters, overbought_oversold_output = (
+                _render_overbought_oversold_parameters(overbought_oversold_indicator)
+            )
+
+            default_upper_level, default_lower_level = _default_overbought_oversold_levels(
+                overbought_oversold_indicator
+            )
             overbought_col, oversold_col = st.columns(2)
             with overbought_col:
                 overbought_level = st.number_input(
                     "Nivel de sobrecompra",
-                    min_value=0,
-                    max_value=100,
-                    value=70,
-                    step=1,
+                    value=float(default_upper_level),
+                    step=0.1,
                     key="ready_overbought_level",
+                    format="%.4f",
                 )
             with oversold_col:
                 oversold_level = st.number_input(
                     "Nivel de sobrevenda",
-                    min_value=0,
-                    max_value=100,
-                    value=30,
-                    step=1,
+                    value=float(default_lower_level),
+                    step=0.1,
                     key="ready_oversold_level",
+                    format="%.4f",
                 )
-            st.caption(f"Condicao selecionada: {overbought_oversold_signal}")
+
+            if float(overbought_level) <= float(oversold_level):
+                st.warning(
+                    "O nivel de sobrecompra deve ficar acima do nivel de sobrevenda para a zona interna funcionar corretamente."
+                )
+
+            with st.container():
+                st.caption(
+                    f"Saida usada: {overbought_oversold_output} | Condicao selecionada: {overbought_oversold_signal}"
+                )
 
     with st.expander("Configurar sinais", expanded=False):
         st.markdown(
@@ -2511,9 +2985,15 @@ def render_sinais_prontos() -> dict:
         "overbought_oversold": {
             "enabled": overbought_oversold_enabled,
             "indicator": overbought_oversold_indicator,
-            "period": int(overbought_oversold_period),
-            "overbought_level": int(overbought_level),
-            "oversold_level": int(oversold_level),
+            "indicator_output": overbought_oversold_output,
+            "parameters": overbought_oversold_parameters,
+            "period": (
+                int(overbought_oversold_parameters["period"])
+                if "period" in overbought_oversold_parameters
+                else None
+            ),
+            "overbought_level": float(overbought_level),
+            "oversold_level": float(oversold_level),
             "signal": overbought_oversold_signal,
         },
     }

@@ -493,14 +493,15 @@ def _build_band_channel_rules(
 def _build_level_rules(
     indicator_name: str,
     parameters: dict[str, Any],
+    output_name: str,
     signal_label: str,
     upper_level: float,
     lower_level: float,
     group_id_prefix: str,
     scope: str,
 ) -> list[dict[str, Any]]:
-    indicator_current = _make_indicator_source(indicator_name, "Valor", parameters, indicator_name, 0)
-    indicator_previous = _make_indicator_source(indicator_name, "Valor", parameters, indicator_name, 1)
+    indicator_current = _make_indicator_source(indicator_name, output_name, parameters, indicator_name, 0)
+    indicator_previous = _make_indicator_source(indicator_name, output_name, parameters, indicator_name, 1)
     upper_source = _make_fixed_source(upper_level, f"Nivel {upper_level}")
     lower_source = _make_fixed_source(lower_level, f"Nivel {lower_level}")
 
@@ -650,9 +651,20 @@ def _build_overbought_oversold_rules(
             "Fechou fora e fechou dentro": "Fechou dentro e saiu",
         }.get(signal_label, signal_label)
 
+    indicator_name = signal_config.get("indicator", "RSI (Relative Strength Index)")
+    if indicator_name == "RSI":
+        indicator_name = "RSI (Relative Strength Index)"
+    if indicator_name == "CCI":
+        indicator_name = "CCI (Commodity Channel Index)"
+
+    parameters = deepcopy(signal_config.get("parameters", {}))
+    if not parameters and signal_config.get("period") is not None:
+        parameters = {"period": int(signal_config.get("period", 14))}
+
     return _build_level_rules(
-        indicator_name=signal_config.get("indicator", "RSI"),
-        parameters={"period": int(signal_config.get("period", 14))},
+        indicator_name=indicator_name,
+        parameters=parameters,
+        output_name=signal_config.get("indicator_output", "Valor"),
         signal_label=signal_label,
         upper_level=float(signal_config.get("overbought_level", 70)),
         lower_level=float(signal_config.get("oversold_level", 30)),
