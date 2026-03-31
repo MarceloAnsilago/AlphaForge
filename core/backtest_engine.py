@@ -89,12 +89,36 @@ def _build_summary(trades: pd.DataFrame) -> dict[str, Any]:
     }
 
 
+def _build_performance_curve(trades: pd.DataFrame) -> pd.DataFrame:
+    if trades.empty:
+        return pd.DataFrame(columns=["time", "equity"])
+
+    performance_curve = trades.loc[:, ["exit_time", "pnl"]].copy()
+    performance_curve = performance_curve.rename(columns={"exit_time": "time"})
+    performance_curve["equity"] = performance_curve["pnl"].cumsum()
+
+    start_row = pd.DataFrame(
+        [
+            {
+                "time": trades.iloc[0]["entry_time"],
+                "equity": 0.0,
+            }
+        ]
+    )
+
+    return pd.concat(
+        [start_row, performance_curve.loc[:, ["time", "equity"]]],
+        ignore_index=True,
+    )
+
+
 def run_backtest(strategy: dict[str, Any], candles: pd.DataFrame) -> dict[str, Any]:
     if candles.empty:
         empty_trades = pd.DataFrame()
         return {
             "summary": _build_summary(empty_trades),
             "trades": empty_trades,
+            "performance_curve": pd.DataFrame(columns=["time", "equity"]),
             "evaluation": pd.DataFrame(),
             "signals": {"entry": [], "exit": []},
             "ambiguous_entries": 0,
@@ -194,6 +218,7 @@ def run_backtest(strategy: dict[str, Any], candles: pd.DataFrame) -> dict[str, A
     return {
         "summary": _build_summary(trades_frame),
         "trades": trades_frame,
+        "performance_curve": _build_performance_curve(trades_frame),
         "evaluation": evaluation_frame,
         "signals": {
             "entry": evaluation["entry_signals"],

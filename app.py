@@ -57,6 +57,11 @@ def _render_backtest(backtest_result: dict[str, Any]) -> None:
         st.info("Nenhuma operacao foi gerada pelo backtest simples com os candles carregados.")
         return
 
+    performance_curve = backtest_result["performance_curve"]
+    if not performance_curve.empty:
+        st.subheader("Desempenho acumulado")
+        st.line_chart(performance_curve.set_index("time")[["equity"]], use_container_width=True)
+
     st.dataframe(trades, use_container_width=True)
 
 
