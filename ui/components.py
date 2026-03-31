@@ -44,7 +44,18 @@ BAND_CHANNEL_INDICATOR_OPTIONS = [
     "Donchian",
     "Canal ATR",
 ]
-CROSSOVER_INDICATOR_OPTIONS = ["SMA", "EMA"]
+CROSSOVER_SOURCE_OPTIONS = [
+    "Nao usar",
+    "Fechamento da vela",
+    "Abertura da vela",
+    "Maxima da vela",
+    "Minima da vela",
+    "Media Movel",
+    "Vidya",
+    "Dema",
+    "Tema",
+    "Frama",
+]
 OVERBOUGHT_OVERSOLD_INDICATOR_OPTIONS = [
     "MACD",
     "Estocastico",
@@ -438,6 +449,165 @@ def _render_band_channel_parameters(indicator_name: str) -> dict:
         "displacement": int(displacement),
         "price_mode": price_mode,
     }
+
+
+def _normalize_crossover_source(value: str | None) -> str:
+    aliases = {
+        "SMA": "Media Movel",
+        "EMA": "Media Movel",
+        "Close": "Fechamento da vela",
+        "Open": "Abertura da vela",
+        "High": "Maxima da vela",
+        "Low": "Minima da vela",
+        "Dema": "Dema",
+        "Tema": "Tema",
+        "Frama": "Frama",
+        "DEMA": "Dema",
+        "TEMA": "Tema",
+        "FRAMA": "Frama",
+    }
+    normalized_value = aliases.get(str(value), value)
+    if normalized_value in CROSSOVER_SOURCE_OPTIONS:
+        return str(normalized_value)
+    return CROSSOVER_SOURCE_OPTIONS[0]
+
+
+def _default_crossover_source_parameters(source_name: str) -> dict:
+    if source_name == "Media Movel":
+        return {
+            "period": 21,
+            "displacement": 0,
+            "ma_type": MA_TYPE_OPTIONS[0],
+            "price_mode": PRICE_MODE_OPTIONS[0],
+        }
+    if source_name == "Vidya":
+        return {
+            "cmo_period": 9,
+            "ema_period": 12,
+            "displacement": 0,
+            "price_mode": PRICE_MODE_OPTIONS[0],
+        }
+    if source_name in {"Dema", "Tema", "Frama"}:
+        return {
+            "period": 14,
+            "displacement": 0,
+            "price_mode": PRICE_MODE_OPTIONS[0],
+        }
+    return {}
+
+
+def _render_crossover_source_parameters(source_name: str, prefix: str) -> dict:
+    defaults = _default_crossover_source_parameters(source_name)
+
+    if source_name == "Media Movel":
+        period_col, displacement_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=int(defaults["period"]),
+                step=1,
+                key=f"{prefix}_period",
+            )
+        with displacement_col:
+            displacement = st.number_input(
+                "Deslocamento",
+                value=int(defaults["displacement"]),
+                step=1,
+                key=f"{prefix}_displacement",
+            )
+        ma_type_col, price_mode_col = st.columns(2)
+        with ma_type_col:
+            ma_type = st.selectbox(
+                "Tipo de media",
+                options=MA_TYPE_OPTIONS,
+                index=MA_TYPE_OPTIONS.index(str(defaults["ma_type"])),
+                key=f"{prefix}_ma_type",
+            )
+        with price_mode_col:
+            price_mode = st.selectbox(
+                "Modo de preco",
+                options=PRICE_MODE_OPTIONS,
+                index=PRICE_MODE_OPTIONS.index(str(defaults["price_mode"])),
+                key=f"{prefix}_price_mode",
+            )
+        return {
+            "period": int(period),
+            "displacement": int(displacement),
+            "ma_type": ma_type,
+            "price_mode": price_mode,
+        }
+
+    if source_name == "Vidya":
+        cmo_period_col, ema_period_col = st.columns(2)
+        with cmo_period_col:
+            cmo_period = st.number_input(
+                "Periodo CMO",
+                min_value=1,
+                value=int(defaults["cmo_period"]),
+                step=1,
+                key=f"{prefix}_cmo_period",
+            )
+        with ema_period_col:
+            ema_period = st.number_input(
+                "Periodo EMA",
+                min_value=1,
+                value=int(defaults["ema_period"]),
+                step=1,
+                key=f"{prefix}_ema_period",
+            )
+        displacement_col, price_mode_col = st.columns(2)
+        with displacement_col:
+            displacement = st.number_input(
+                "Deslocamento",
+                value=int(defaults["displacement"]),
+                step=1,
+                key=f"{prefix}_displacement",
+            )
+        with price_mode_col:
+            price_mode = st.selectbox(
+                "Modo de preco",
+                options=PRICE_MODE_OPTIONS,
+                index=PRICE_MODE_OPTIONS.index(str(defaults["price_mode"])),
+                key=f"{prefix}_price_mode",
+            )
+        return {
+            "cmo_period": int(cmo_period),
+            "ema_period": int(ema_period),
+            "displacement": int(displacement),
+            "price_mode": price_mode,
+        }
+
+    if source_name in {"Dema", "Tema", "Frama"}:
+        period_col, displacement_col = st.columns(2)
+        with period_col:
+            period = st.number_input(
+                "Periodo",
+                min_value=1,
+                value=int(defaults["period"]),
+                step=1,
+                key=f"{prefix}_period",
+            )
+        with displacement_col:
+            displacement = st.number_input(
+                "Deslocamento",
+                value=int(defaults["displacement"]),
+                step=1,
+                key=f"{prefix}_displacement",
+            )
+        price_mode = st.selectbox(
+            "Modo de preco",
+            options=PRICE_MODE_OPTIONS,
+            index=PRICE_MODE_OPTIONS.index(str(defaults["price_mode"])),
+            key=f"{prefix}_price_mode",
+        )
+        return {
+            "period": int(period),
+            "displacement": int(displacement),
+            "price_mode": price_mode,
+        }
+
+    return {}
 
 
 def _normalize_overbought_oversold_indicator(value: str | None) -> str:
@@ -2711,10 +2881,10 @@ def render_sinais_prontos() -> dict:
     band_channels_parameters = _default_band_channel_parameters(band_channels_indicator)
 
     crossover_enabled = False
-    crossover_fast_indicator = CROSSOVER_INDICATOR_OPTIONS[0]
-    crossover_fast_period = 9
-    crossover_slow_indicator = CROSSOVER_INDICATOR_OPTIONS[1]
-    crossover_slow_period = 21
+    crossover_fast_source = CROSSOVER_SOURCE_OPTIONS[0]
+    crossover_fast_parameters: dict = {}
+    crossover_slow_source = CROSSOVER_SOURCE_OPTIONS[0]
+    crossover_slow_parameters: dict = {}
     crossover_signal = "Cruzamento para compra"
 
     overbought_oversold_signal = "Nao usar"
@@ -2761,6 +2931,15 @@ def render_sinais_prontos() -> dict:
             st.caption(f"Sinal selecionado: {band_channels_signal}")
 
     with st.expander("Cruzamentos", expanded=False):
+        current_fast_source = _normalize_crossover_source(
+            st.session_state.get("ready_crossover_fast_source")
+        )
+        current_slow_source = _normalize_crossover_source(
+            st.session_state.get("ready_crossover_slow_source")
+        )
+        st.session_state["ready_crossover_fast_source"] = current_fast_source
+        st.session_state["ready_crossover_slow_source"] = current_slow_source
+
         crossover_enabled = (
             st.radio(
                 "Usar sinal de cruzamentos?",
@@ -2771,37 +2950,28 @@ def render_sinais_prontos() -> dict:
             == "Sim"
         )
         if crossover_enabled:
-            fast_indicator_col, fast_period_col = st.columns(2)
-            with fast_indicator_col:
-                crossover_fast_indicator = st.selectbox(
-                    "Indicador rapido",
-                    options=CROSSOVER_INDICATOR_OPTIONS,
-                    key="ready_crossover_fast_indicator",
-                )
-            with fast_period_col:
-                crossover_fast_period = st.number_input(
-                    "Periodo rapido",
-                    min_value=1,
-                    value=9,
-                    step=1,
-                    key="ready_crossover_fast_period",
-                )
-            slow_indicator_col, slow_period_col = st.columns(2)
-            with slow_indicator_col:
-                crossover_slow_indicator = st.selectbox(
-                    "Indicador lento",
-                    options=CROSSOVER_INDICATOR_OPTIONS,
-                    index=1,
-                    key="ready_crossover_slow_indicator",
-                )
-            with slow_period_col:
-                crossover_slow_period = st.number_input(
-                    "Periodo lento",
-                    min_value=1,
-                    value=21,
-                    step=1,
-                    key="ready_crossover_slow_period",
-                )
+            crossover_fast_source = st.selectbox(
+                "Sinal rapido",
+                options=CROSSOVER_SOURCE_OPTIONS,
+                key="ready_crossover_fast_source",
+            )
+            crossover_fast_source = _normalize_crossover_source(crossover_fast_source)
+            crossover_fast_parameters = _render_crossover_source_parameters(
+                crossover_fast_source,
+                "ready_crossover_fast",
+            )
+
+            crossover_slow_source = st.selectbox(
+                "Sinal lento",
+                options=CROSSOVER_SOURCE_OPTIONS,
+                key="ready_crossover_slow_source",
+            )
+            crossover_slow_source = _normalize_crossover_source(crossover_slow_source)
+            crossover_slow_parameters = _render_crossover_source_parameters(
+                crossover_slow_source,
+                "ready_crossover_slow",
+            )
+
             crossover_signal = st.selectbox(
                 "Sinal",
                 options=[
@@ -2811,6 +2981,8 @@ def render_sinais_prontos() -> dict:
                 ],
                 key="ready_crossover_signal",
             )
+            if "Nao usar" in {crossover_fast_source, crossover_slow_source}:
+                st.warning("Selecione um sinal rapido e um sinal lento para habilitar o cruzamento.")
 
     with st.expander("Sobre comprado/vendido", expanded=False):
         current_overbought_indicator = _normalize_overbought_oversold_indicator(
@@ -2976,10 +3148,22 @@ def render_sinais_prontos() -> dict:
         },
         "crossovers": {
             "enabled": crossover_enabled,
-            "fast_indicator": crossover_fast_indicator,
-            "fast_period": int(crossover_fast_period),
-            "slow_indicator": crossover_slow_indicator,
-            "slow_period": int(crossover_slow_period),
+            "fast_source": crossover_fast_source,
+            "fast_parameters": crossover_fast_parameters,
+            "slow_source": crossover_slow_source,
+            "slow_parameters": crossover_slow_parameters,
+            "fast_indicator": crossover_fast_source,
+            "fast_period": (
+                int(crossover_fast_parameters["period"])
+                if "period" in crossover_fast_parameters
+                else None
+            ),
+            "slow_indicator": crossover_slow_source,
+            "slow_period": (
+                int(crossover_slow_parameters["period"])
+                if "period" in crossover_slow_parameters
+                else None
+            ),
             "signal": crossover_signal,
         },
         "overbought_oversold": {

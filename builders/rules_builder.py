@@ -215,18 +215,8 @@ def _build_crossover_group(
     side: str,
     scope: str,
 ) -> dict[str, Any]:
-    fast_source = _make_indicator_source(
-        indicator_name=signal_config["fast_indicator"],
-        output_name="Valor",
-        parameters={"period": int(signal_config["fast_period"])},
-        label=f"{signal_config['fast_indicator']} rapido",
-    )
-    slow_source = _make_indicator_source(
-        indicator_name=signal_config["slow_indicator"],
-        output_name="Valor",
-        parameters={"period": int(signal_config["slow_period"])},
-        label=f"{signal_config['slow_indicator']} lento",
-    )
+    fast_source = _build_crossover_rule_source(signal_config, side="fast")
+    slow_source = _build_crossover_rule_source(signal_config, side="slow")
     return _make_rule(
         source_a=fast_source,
         operator=operator,
@@ -241,12 +231,51 @@ def _build_crossover_group(
     )
 
 
+def _build_crossover_rule_source(
+    signal_config: dict[str, Any],
+    side: str,
+) -> dict[str, Any]:
+    source_name = signal_config.get(f"{side}_source") or signal_config.get(f"{side}_indicator") or "Nao usar"
+    parameters = deepcopy(signal_config.get(f"{side}_parameters", {}))
+
+    if source_name == "Fechamento da vela":
+        return _make_price_source("close", f"Fechamento {side}", 0)
+    if source_name == "Abertura da vela":
+        return _make_price_source("open", f"Abertura {side}", 0)
+    if source_name == "Maxima da vela":
+        return _make_price_source("high", f"Maxima {side}", 0)
+    if source_name == "Minima da vela":
+        return _make_price_source("low", f"Minima {side}", 0)
+
+    indicator_aliases = {
+        "Dema": "DEMA",
+        "Tema": "TEMA",
+        "Frama": "FRAMA",
+    }
+    indicator_name = indicator_aliases.get(str(source_name), str(source_name))
+
+    if not parameters and signal_config.get(f"{side}_period") is not None:
+        parameters = {"period": int(signal_config[f"{side}_period"])}
+
+    return _make_indicator_source(
+        indicator_name=indicator_name,
+        output_name="Valor",
+        parameters=parameters,
+        label=f"{source_name} {side}",
+    )
+
+
 def _build_crossover_rules(
     ready_signals: dict[str, Any],
     scope: str,
 ) -> list[dict[str, Any]]:
     crossover_config = ready_signals.get("crossovers", {})
     if not crossover_config.get("enabled"):
+        return []
+    if "Nao usar" in {
+        crossover_config.get("fast_source", crossover_config.get("fast_indicator", "Nao usar")),
+        crossover_config.get("slow_source", crossover_config.get("slow_indicator", "Nao usar")),
+    }:
         return []
 
     rules: list[dict[str, Any]] = []
