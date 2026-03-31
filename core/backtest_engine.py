@@ -69,12 +69,15 @@ def _build_summary(trades: pd.DataFrame) -> dict[str, Any]:
             "net_profit": 0.0,
             "average_pnl": 0.0,
             "average_holding_bars": 0.0,
+            "max_drawdown": 0.0,
         }
 
     winning_trades = int((trades["pnl"] > 0).sum())
     losing_trades = int((trades["pnl"] < 0).sum())
     gross_profit = float(trades.loc[trades["pnl"] > 0, "pnl"].sum())
     gross_loss = float(trades.loc[trades["pnl"] < 0, "pnl"].sum())
+    equity_curve = trades["pnl"].cumsum()
+    drawdown_curve = equity_curve - equity_curve.cummax()
 
     return {
         "total_trades": int(len(trades)),
@@ -86,28 +89,35 @@ def _build_summary(trades: pd.DataFrame) -> dict[str, Any]:
         "net_profit": float(trades["pnl"].sum()),
         "average_pnl": float(trades["pnl"].mean()),
         "average_holding_bars": float(trades["holding_bars"].mean()),
+        "max_drawdown": float(drawdown_curve.min()),
     }
 
 
 def _build_performance_curve(trades: pd.DataFrame) -> pd.DataFrame:
     if trades.empty:
-        return pd.DataFrame(columns=["time", "equity"])
+        return pd.DataFrame(columns=["time", "trade_number", "equity", "peak", "drawdown"])
 
     performance_curve = trades.loc[:, ["exit_time", "pnl"]].copy()
     performance_curve = performance_curve.rename(columns={"exit_time": "time"})
+    performance_curve["trade_number"] = range(1, len(performance_curve) + 1)
     performance_curve["equity"] = performance_curve["pnl"].cumsum()
+    performance_curve["peak"] = performance_curve["equity"].cummax()
+    performance_curve["drawdown"] = performance_curve["equity"] - performance_curve["peak"]
 
     start_row = pd.DataFrame(
         [
             {
                 "time": trades.iloc[0]["entry_time"],
+                "trade_number": 0,
                 "equity": 0.0,
+                "peak": 0.0,
+                "drawdown": 0.0,
             }
         ]
     )
 
     return pd.concat(
-        [start_row, performance_curve.loc[:, ["time", "equity"]]],
+        [start_row, performance_curve.loc[:, ["time", "trade_number", "equity", "peak", "drawdown"]]],
         ignore_index=True,
     )
 
@@ -118,7 +128,7 @@ def run_backtest(strategy: dict[str, Any], candles: pd.DataFrame) -> dict[str, A
         return {
             "summary": _build_summary(empty_trades),
             "trades": empty_trades,
-            "performance_curve": pd.DataFrame(columns=["time", "equity"]),
+            "performance_curve": pd.DataFrame(columns=["time", "trade_number", "equity", "peak", "drawdown"]),
             "evaluation": pd.DataFrame(),
             "signals": {"entry": [], "exit": []},
             "ambiguous_entries": 0,

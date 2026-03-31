@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import altair as alt
+import pandas as pd
 import streamlit as st
 
 from builders.rules_builder import build_entry_rules, build_exit_rules
@@ -37,14 +39,72 @@ def _build_risk_management(
     }
 
 
-def _render_backtest(backtest_result: dict[str, Any]) -> None:
+def _build_price_chart(market_data: pd.DataFrame, trades: pd.DataFrame) -> alt.Chart:
+    price_data = market_data.loc[:, ["time", "close"]].copy()
+
+    entry_points = trades.loc[:, ["entry_time", "entry_price", "side", "pnl"]].rename(
+        columns={"entry_time": "time", "entry_price": "price"}
+    )
+    entry_points["event"] = "Entrada"
+
+    exit_points = trades.loc[:, ["exit_time", "exit_price", "side", "pnl"]].rename(
+        columns={"exit_time": "time", "exit_price": "price"}
+    )
+    exit_points["event"] = "Saida"
+
+    trade_markers = pd.concat([entry_points, exit_points], ignore_index=True)
+
+    price_line = (
+        alt.Chart(price_data)
+        .mark_line(color="#2563eb", strokeWidth=2)
+        .encode(
+            x=alt.X("time:T", title="Horario"),
+            y=alt.Y("close:Q", title="Preco"),
+            tooltip=[
+                alt.Tooltip("time:T", title="Horario"),
+                alt.Tooltip("close:Q", title="Fechamento", format=".5f"),
+            ],
+        )
+    )
+
+    marker_points = (
+        alt.Chart(trade_markers)
+        .mark_point(size=90, filled=True)
+        .encode(
+            x=alt.X("time:T", title="Horario"),
+            y=alt.Y("price:Q", title="Preco"),
+            color=alt.Color(
+                "event:N",
+                title="Evento",
+                scale=alt.Scale(domain=["Entrada", "Saida"], range=["#16a34a", "#dc2626"]),
+            ),
+            shape=alt.Shape(
+                "event:N",
+                title="Evento",
+                scale=alt.Scale(domain=["Entrada", "Saida"], range=["triangle-up", "triangle-down"]),
+            ),
+            tooltip=[
+                alt.Tooltip("event:N", title="Evento"),
+                alt.Tooltip("side:N", title="Lado"),
+                alt.Tooltip("time:T", title="Horario"),
+                alt.Tooltip("price:Q", title="Preco", format=".5f"),
+                alt.Tooltip("pnl:Q", title="PnL da operacao", format=".2f"),
+            ],
+        )
+    )
+
+    return (price_line + marker_points).properties(height=360)
+
+
+def _render_backtest(backtest_result: dict[str, Any], market_data: pd.DataFrame) -> None:
     summary = backtest_result["summary"]
-    metric_columns = st.columns(5)
+    metric_columns = st.columns(6)
     metric_columns[0].metric("Trades", int(summary["total_trades"]))
     metric_columns[1].metric("Win rate", f"{summary['win_rate']:.1f}%")
     metric_columns[2].metric("Lucro liquido", f"{summary['net_profit']:.2f}")
     metric_columns[3].metric("Lucro bruto", f"{summary['gross_profit']:.2f}")
     metric_columns[4].metric("Perda bruta", f"{summary['gross_loss']:.2f}")
+    metric_columns[5].metric("Max drawdown", f"{summary['max_drawdown']:.2f}")
 
     if backtest_result["ambiguous_entries"] > 0:
         st.warning(
@@ -59,8 +119,17 @@ def _render_backtest(backtest_result: dict[str, Any]) -> None:
 
     performance_curve = backtest_result["performance_curve"]
     if not performance_curve.empty:
-        st.subheader("Desempenho acumulado")
-        st.line_chart(performance_curve.set_index("time")[["equity"]], use_container_width=True)
+        chart_col_1, chart_col_2 = st.columns(2)
+        with chart_col_1:
+            st.caption("Desempenho acumulado")
+            st.line_chart(performance_curve.set_index("time")[["equity"]], use_container_width=True)
+        with chart_col_2:
+            st.caption("Drawdown")
+            st.area_chart(performance_curve.set_index("time")[["drawdown"]], use_container_width=True)
+
+    if not market_data.empty:
+        st.caption("Preco com entradas e saidas")
+        st.altair_chart(_build_price_chart(market_data, trades), use_container_width=True)
 
     st.dataframe(trades, use_container_width=True)
 
@@ -148,7 +217,7 @@ def render_app() -> None:
         if not market_data.empty:
             with st.expander("Backtest simples", expanded=True):
                 backtest_result = run_backtest(payload, market_data)
-                _render_backtest(backtest_result)
+                _render_backtest(backtest_result, market_data)
         else:
             st.info("Carregue candles do MT5 para executar o backtest simples.")
 
