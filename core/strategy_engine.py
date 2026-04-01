@@ -49,8 +49,20 @@ def _safe_divide(numerator: pd.Series, denominator: pd.Series) -> pd.Series:
     return numerator / denominator.replace(0, float("nan"))
 
 
+def _safe_shift(values: pd.Series | pd.DataFrame, periods: int) -> pd.Series | pd.DataFrame:
+    normalized_periods = int(periods)
+    if normalized_periods < 0:
+        if isinstance(values, pd.DataFrame):
+            return pd.DataFrame(float("nan"), index=values.index, columns=values.columns, dtype="float64")
+        return pd.Series(float("nan"), index=values.index, dtype="float64")
+    return values.shift(normalized_periods)
+
+
 def _apply_offset(series: pd.Series, offset: int) -> pd.Series:
-    return series.shift(int(offset))
+    shifted = _safe_shift(series, int(offset))
+    if isinstance(shifted, pd.Series):
+        return shifted
+    return _empty_series(pd.DataFrame(index=series.index))
 
 
 def _resolve_price_mode_field(price_mode: str | None) -> str:
@@ -348,11 +360,11 @@ def _compute_fractal(candles: pd.DataFrame) -> pd.DataFrame:
 
         if high_value > float(candles.iloc[index - 1]["high"]) and high_value > float(candles.iloc[index - 2]["high"]):
             if high_value > float(candles.iloc[index + 1]["high"]) and high_value > float(candles.iloc[index + 2]["high"]):
-                upper.iloc[index] = high_value
+                upper.iloc[index + 2] = high_value
 
         if low_value < float(candles.iloc[index - 1]["low"]) and low_value < float(candles.iloc[index - 2]["low"]):
             if low_value < float(candles.iloc[index + 1]["low"]) and low_value < float(candles.iloc[index + 2]["low"]):
-                lower.iloc[index] = low_value
+                lower.iloc[index + 2] = low_value
 
     return pd.DataFrame({"Superior": upper, "Inferior": lower})
 
@@ -491,14 +503,17 @@ def _compute_alligator(parameters: dict[str, Any], candles: pd.DataFrame) -> pd.
     ma_type = _extract_ma_type(parameters, default="SMMA")
     price_series = _resolve_price_mode_series(candles, parameters.get("price_mode"))
 
-    jaw = _moving_average(price_series, _coerce_int(parameters.get("jaw_period"), 13), ma_type).shift(
-        _coerce_int(parameters.get("jaw_shift"), 8)
+    jaw = _safe_shift(
+        _moving_average(price_series, _coerce_int(parameters.get("jaw_period"), 13), ma_type),
+        _coerce_int(parameters.get("jaw_shift"), 8),
     )
-    teeth = _moving_average(price_series, _coerce_int(parameters.get("teeth_period"), 8), ma_type).shift(
-        _coerce_int(parameters.get("teeth_shift"), 5)
+    teeth = _safe_shift(
+        _moving_average(price_series, _coerce_int(parameters.get("teeth_period"), 8), ma_type),
+        _coerce_int(parameters.get("teeth_shift"), 5),
     )
-    lips = _moving_average(price_series, _coerce_int(parameters.get("lips_period"), 5), ma_type).shift(
-        _coerce_int(parameters.get("lips_shift"), 3)
+    lips = _safe_shift(
+        _moving_average(price_series, _coerce_int(parameters.get("lips_period"), 5), ma_type),
+        _coerce_int(parameters.get("lips_shift"), 3),
     )
     return pd.DataFrame({"Mandibula": jaw, "Dente": teeth, "Boca": lips})
 
@@ -515,7 +530,7 @@ def _compute_ichimoku(candles: pd.DataFrame, parameters: dict[str, Any]) -> pd.D
         (candles["high"].rolling(senkou_span_b_period).max() + candles["low"].rolling(senkou_span_b_period).min())
         / 2
     ).shift(kijun_period)
-    chikou = candles["close"].shift(-kijun_period)
+    chikou = _safe_shift(candles["close"].astype(float), -kijun_period)
     return pd.DataFrame(
         {
             "Tenkan-sen": tenkan,
@@ -599,7 +614,8 @@ def _compute_indicator_frame(source: dict[str, Any], candles: pd.DataFrame) -> p
         ma_type = _extract_ma_type(parameters)
         values = _moving_average(base_series, period, ma_type)
         displacement = _coerce_int(parameters.get("displacement"), 0)
-        return pd.DataFrame({"Valor": values.shift(displacement)})
+        shifted = _safe_shift(values, displacement)
+        return pd.DataFrame({"Valor": shifted})
 
     if indicator_name == "Keltner":
         return _compute_keltner(candles, parameters)
@@ -616,7 +632,7 @@ def _compute_indicator_frame(source: dict[str, Any], candles: pd.DataFrame) -> p
         period = _coerce_int(parameters.get("period"), 14)
         displacement = _coerce_int(parameters.get("displacement"), 0)
         ma_type = _extract_ma_type(parameters)
-        moving_average = _moving_average(base_series, period, ma_type).shift(displacement)
+        moving_average = _safe_shift(_moving_average(base_series, period, ma_type), displacement)
         return pd.DataFrame({"Valor": base_series - moving_average})
 
     if indicator_name == "Desvio Medio":
@@ -642,7 +658,10 @@ def _compute_indicator_frame(source: dict[str, Any], candles: pd.DataFrame) -> p
         deviation = _coerce_float(parameters.get("deviation"), 2.0)
         frame = _compute_bbands(base_series, period, deviation)
         displacement = _coerce_int(parameters.get("displacement"), 0)
-        return frame.shift(displacement)
+        shifted = _safe_shift(frame, displacement)
+        if isinstance(shifted, pd.DataFrame):
+            return shifted
+        return pd.DataFrame({"Superior": _empty_series(candles), "Media": _empty_series(candles), "Inferior": _empty_series(candles)})
 
     if indicator_name == "MACD":
         fast_period = _coerce_int(parameters.get("fast_ema"), 12)
@@ -655,7 +674,10 @@ def _compute_indicator_frame(source: dict[str, Any], candles: pd.DataFrame) -> p
         displacement = _coerce_int(parameters.get("displacement"), 0)
         ma_type = _extract_ma_type(parameters)
         deviation = _coerce_float(parameters.get("deviation"), 1.0)
-        return _compute_envelopes(base_series, period, ma_type, deviation).shift(displacement)
+        shifted = _safe_shift(_compute_envelopes(base_series, period, ma_type, deviation), displacement)
+        if isinstance(shifted, pd.DataFrame):
+            return shifted
+        return pd.DataFrame({"Superior": _empty_series(candles), "Media": _empty_series(candles), "Inferior": _empty_series(candles)})
 
     if indicator_name == "Estocastico":
         return _compute_stochastic(candles, parameters)
@@ -667,7 +689,8 @@ def _compute_indicator_frame(source: dict[str, Any], candles: pd.DataFrame) -> p
     if indicator_name == "Desvio Padrao":
         period = _coerce_int(parameters.get("period"), 2)
         displacement = _coerce_int(parameters.get("displacement"), 0)
-        return pd.DataFrame({"Valor": _compute_stddev(base_series, period).shift(displacement)})
+        shifted = _safe_shift(_compute_stddev(base_series, period), displacement)
+        return pd.DataFrame({"Valor": shifted})
 
     if indicator_name == "Volume":
         return pd.DataFrame({"Valor": _resolve_volume_series(candles, parameters.get("type"))})
@@ -704,22 +727,26 @@ def _compute_indicator_frame(source: dict[str, Any], candles: pd.DataFrame) -> p
         cmo_period = _coerce_int(parameters.get("cmo_period"), 9)
         ema_period = _coerce_int(parameters.get("ema_period"), 12)
         displacement = _coerce_int(parameters.get("displacement"), 0)
-        return pd.DataFrame({"Valor": _compute_vidya(base_series, cmo_period, ema_period).shift(displacement)})
+        shifted = _safe_shift(_compute_vidya(base_series, cmo_period, ema_period), displacement)
+        return pd.DataFrame({"Valor": shifted})
 
     if indicator_name == "DEMA":
         period = _coerce_int(parameters.get("period"), 14)
         displacement = _coerce_int(parameters.get("displacement"), 0)
-        return pd.DataFrame({"Valor": _compute_dema(base_series, period).shift(displacement)})
+        shifted = _safe_shift(_compute_dema(base_series, period), displacement)
+        return pd.DataFrame({"Valor": shifted})
 
     if indicator_name == "TEMA":
         period = _coerce_int(parameters.get("period"), 14)
         displacement = _coerce_int(parameters.get("displacement"), 0)
-        return pd.DataFrame({"Valor": _compute_tema(base_series, period).shift(displacement)})
+        shifted = _safe_shift(_compute_tema(base_series, period), displacement)
+        return pd.DataFrame({"Valor": shifted})
 
     if indicator_name == "FRAMA":
         period = _coerce_int(parameters.get("period"), 14)
         displacement = _coerce_int(parameters.get("displacement"), 0)
-        return pd.DataFrame({"Valor": _compute_frama(base_series, period).shift(displacement)})
+        shifted = _safe_shift(_compute_frama(base_series, period), displacement)
+        return pd.DataFrame({"Valor": shifted})
 
     if indicator_name == "TRIX":
         period = _coerce_int(parameters.get("period"), 14)
@@ -794,6 +821,8 @@ def _resolve_indicator_source(
     indicator_frame = cache[cache_key]
     output_name = source.get("indicator_output", "Valor")
     if output_name not in indicator_frame.columns:
+        return _empty_series(candles)
+    if source.get("indicator_name") == "Nuvem de Ichimoku" and output_name == "Chikou Span":
         return _empty_series(candles)
     return _apply_offset(indicator_frame[output_name].astype(float), source.get("candle_offset", 0))
 
