@@ -14,6 +14,7 @@ def _build_default_state() -> dict[str, Any]:
         "symbols": [],
         "market_data": pd.DataFrame(),
         "market_query": None,
+        "show_market_chart": False,
         "saved_strategy": None,
     }
 

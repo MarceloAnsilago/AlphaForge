@@ -219,8 +219,13 @@ def render_connection_tab(tab: Any, state: dict[str, Any]) -> None:
                 connection_result = connect_terminal()
                 state["mt5_connected"] = connection_result["connected"]
                 state["mt5_status"] = connection_result["status"]
-                state["symbols"] = []
-                state["symbols_status"] = ""
+                if connection_result["connected"]:
+                    symbols_result = load_terminal_symbols()
+                    state["symbols"] = symbols_result["symbols"]
+                    state["symbols_status"] = symbols_result["status"]
+                else:
+                    state["symbols"] = []
+                    state["symbols_status"] = ""
 
             if load_symbols_col.button(
                 "Carregar simbolos",
@@ -239,7 +244,10 @@ def render_connection_tab(tab: Any, state: dict[str, Any]) -> None:
                 st.info("Clique no botao para conectar ao MetaTrader 5.")
 
             if state["mt5_connected"] and not state["symbols"]:
-                st.info("Depois de conectar, clique em 'Carregar simbolos' para disponibilizar os ativos.")
+                st.info(
+                    "Conexao realizada, mas nenhum simbolo foi carregado automaticamente. "
+                    "Use 'Carregar simbolos' para tentar novamente."
+                )
 
             if state["symbols_status"]:
                 if state["symbols"]:
@@ -252,6 +260,7 @@ def render_market_data_tab(tab: Any, state: dict[str, Any]) -> dict[str, Any]:
     market_data = state["market_data"]
     market_query = state["market_query"]
     available_symbols = state["symbols"]
+    show_market_chart = state["show_market_chart"]
 
     with tab:
         with st.expander("Dados de mercado", expanded=False):
@@ -313,8 +322,10 @@ def render_market_data_tab(tab: Any, state: dict[str, Any]) -> dict[str, Any]:
                         else:
                             state["market_data"] = market_result["data"]
                             state["market_query"] = market_result["query"]
+                            state["show_market_chart"] = False
                             market_data = state["market_data"]
                             market_query = state["market_query"]
+                            show_market_chart = state["show_market_chart"]
                             if market_data.empty:
                                 st.warning(market_result["error"] or "Nenhum dado retornado.")
                             else:
@@ -334,7 +345,16 @@ def render_market_data_tab(tab: Any, state: dict[str, Any]) -> dict[str, Any]:
                     )
                 )
                 st.dataframe(market_data, use_container_width=True)
-                st.line_chart(market_data.set_index("time")[["close"]], use_container_width=True)
+
+                chart_button_label = "Ocultar grafico" if show_market_chart else "Exibir grafico"
+                if st.button(chart_button_label, key="toggle_market_chart", use_container_width=True):
+                    state["show_market_chart"] = not show_market_chart
+                    show_market_chart = state["show_market_chart"]
+
+                if show_market_chart:
+                    st.line_chart(market_data.set_index("time")[["close"]], use_container_width=True)
+                else:
+                    st.caption("O grafico permanece oculto ate voce clicar em 'Exibir grafico'.")
 
     return {
         "selected_symbol": selected_symbol,
