@@ -10,9 +10,11 @@ from core.backtest.metrics import attach_position_side, build_performance_curve,
 from core.backtest.portfolio import BacktestPortfolio
 from core.backtest.types import FillPolicy, SignalFrame
 from core.strategy_engine import evaluate_strategy
+from domain.strategy.normalizer import normalize_strategy
+from domain.strategy.spec import StrategySpec
 
 
-SignalEvaluator = Callable[[dict[str, Any], pd.DataFrame], dict[str, Any]]
+SignalEvaluator = Callable[[StrategySpec, pd.DataFrame], dict[str, Any]]
 
 
 @dataclass(slots=True)
@@ -24,8 +26,8 @@ class BacktestEngine:
             return candles.copy()
         return candles.sort_values("time", kind="stable").reset_index(drop=True).copy()
 
-    def _resolve_fill_policy(self, strategy: dict[str, Any]) -> FillPolicy:
-        settings = strategy.get("settings", {})
+    def _resolve_fill_policy(self, strategy: StrategySpec) -> FillPolicy:
+        settings = strategy.settings
         backtest_settings = settings.get("backtest", {})
         fixed_spread = backtest_settings.get(
             "fixed_spread",
@@ -38,7 +40,7 @@ class BacktestEngine:
             slippage=float(slippage or 0.0),
         )
 
-    def run(self, strategy: dict[str, Any], candles: pd.DataFrame) -> dict[str, Any]:
+    def run(self, strategy: dict[str, Any] | StrategySpec, candles: pd.DataFrame) -> dict[str, Any]:
         if candles.empty:
             empty_trades = pd.DataFrame()
             return {
@@ -56,11 +58,12 @@ class BacktestEngine:
                 "events": [],
             }
 
+        strategy_spec = normalize_strategy(strategy)
         prepared_candles = self._prepare_candles(candles)
-        signal_result = self.signal_evaluator(strategy, prepared_candles)
-        direction = strategy.get("direction", "NONE")
-        volume = float(strategy.get("settings", {}).get("initial_volume", 1.0))
-        fill_policy = self._resolve_fill_policy(strategy)
+        signal_result = self.signal_evaluator(strategy_spec, prepared_candles)
+        direction = strategy_spec.direction
+        volume = float(strategy_spec.settings.get("initial_volume", 1.0))
+        fill_policy = self._resolve_fill_policy(strategy_spec)
         signal_frame = SignalFrame.from_evaluation(signal_result, direction)
         execution_model = DeterministicExecutionModel(direction=direction, volume=volume, fill_policy=fill_policy)
         portfolio = BacktestPortfolio(execution_model=execution_model)

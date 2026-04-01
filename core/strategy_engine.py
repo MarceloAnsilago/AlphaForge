@@ -7,6 +7,8 @@ import math
 
 import pandas as pd
 
+from domain.strategy.spec import StrategySpec
+
 
 AND_CONNECTORS = {"SE", "E", "E SE", "E Tambem"}
 OR_CONNECTORS = {"OU", "OU SE", "OU Tambem"}
@@ -964,12 +966,12 @@ def _collect_signals(
 
 
 def evaluate_strategy(
-    strategy: dict[str, Any],
+    strategy: StrategySpec,
     candles: pd.DataFrame,
 ) -> dict[str, Any]:
-    entry_evaluations = evaluate_rule_set(strategy.get("entry_rules", []), candles)
-    exit_evaluations = evaluate_rule_set(strategy.get("exit_rules", []), candles)
-    direction = strategy.get("direction", "NONE")
+    entry_evaluations = evaluate_rule_set([rule.to_dict() for rule in strategy.entry_rules], candles)
+    exit_evaluations = evaluate_rule_set([rule.to_dict() for rule in strategy.exit_rules], candles)
+    direction = strategy.direction
 
     evaluation_frame = candles.loc[:, ["time", "close"]].copy()
     evaluation_frame["entry_signal"] = entry_evaluations["combined"].astype(bool)
