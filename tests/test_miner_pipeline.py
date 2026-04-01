@@ -5,7 +5,7 @@ import unittest
 import pandas as pd
 
 from core.backtest_engine import run_backtest
-from domain.miner.scoring import score_train_test_results
+from domain.miner.scoring import score_train_test_results, score_walk_forward_results
 from domain.miner.generator import RandomStrategyGenerator
 from domain.miner.pipeline import MinerPipeline
 from domain.miner.space import MinerEvaluationConfig, MinerFilterConfig, default_search_space
@@ -135,6 +135,103 @@ def _robust_candles() -> pd.DataFrame:
     )
 
 
+def _walk_forward_consistent_candles() -> pd.DataFrame:
+    chunk = {
+        "open": [1.0, 1.1, 1.2, 1.3, 1.1],
+        "high": [1.1, 1.2, 1.3, 1.4, 1.2],
+        "low": [0.9, 1.0, 1.1, 1.2, 1.0],
+        "close": [1.0, 1.2, 1.4, 1.1, 1.0],
+    }
+    repeats = 3
+    return pd.DataFrame(
+        {
+            "time": pd.date_range("2026-04-01", periods=5 * repeats, freq="h"),
+            "open": chunk["open"] * repeats,
+            "high": chunk["high"] * repeats,
+            "low": chunk["low"] * repeats,
+            "close": chunk["close"] * repeats,
+            "tick_volume": [10] * (5 * repeats),
+        }
+    )
+
+
+def _walk_forward_unstable_candles() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "time": pd.date_range("2026-05-01", periods=15, freq="h"),
+            "open": [
+                1.0,
+                1.1,
+                1.2,
+                1.3,
+                1.4,
+                1.0,
+                1.1,
+                1.2,
+                1.3,
+                1.4,
+                1.6,
+                1.5,
+                1.4,
+                1.3,
+                1.2,
+            ],
+            "high": [
+                1.1,
+                1.2,
+                1.3,
+                1.5,
+                1.6,
+                1.1,
+                1.2,
+                1.3,
+                1.5,
+                1.6,
+                1.7,
+                1.6,
+                1.5,
+                1.4,
+                1.3,
+            ],
+            "low": [
+                0.9,
+                1.0,
+                1.1,
+                1.2,
+                1.3,
+                0.9,
+                1.0,
+                1.1,
+                1.2,
+                1.3,
+                1.4,
+                1.3,
+                1.2,
+                1.1,
+                1.0,
+            ],
+            "close": [
+                1.0,
+                1.2,
+                1.4,
+                1.6,
+                1.5,
+                1.0,
+                1.2,
+                1.4,
+                1.6,
+                1.5,
+                1.5,
+                1.4,
+                1.3,
+                1.2,
+                1.1,
+            ],
+            "tick_volume": [10] * 15,
+        }
+    )
+
+
 class MinerPipelineTests(unittest.TestCase):
     def setUp(self) -> None:
         db = InMemoryDatabaseClient()
@@ -226,6 +323,129 @@ class MinerPipelineTests(unittest.TestCase):
         self.assertFalse(overfit_score.passed_filters)
         self.assertGreater(robust_score.score, overfit_score.score)
         self.assertGreater(robust_score.consistency, overfit_score.consistency)
+
+    def test_walk_forward_with_single_configured_window(self) -> None:
+        walk_forward_pipeline = MinerPipeline(
+            strategy_service=self.pipeline.strategy_service,
+            backtest_service=self.pipeline.backtest_service,
+            strategy_repository=self.pipeline.strategy_repository,
+            backtest_repository=self.pipeline.backtest_repository,
+            filters=MinerFilterConfig(min_trades=1, min_net_profit=0.0, max_drawdown=100.0, min_profit_factor=0.0),
+            execution_parameters={"fill_policy": "next_candle_open"},
+            evaluation=MinerEvaluationConfig(
+                mode="robust_walk_forward",
+                minimum_partition_size=5,
+                walk_forward_windows=[
+                    {"label": "wf_0", "train_start": 0, "train_end": 4, "test_start": 5, "test_end": 9}
+                ],
+            ),
+        )
+
+        result = walk_forward_pipeline.process_candidate(_robust_sell_candidate(), _walk_forward_consistent_candles())
+
+        self.assertEqual(result.status, "accepted")
+        self.assertEqual(result.evaluation_mode, "robust_walk_forward")
+        self.assertEqual(len(result.window_backtest_run_ids), 2)
+        self.assertEqual(result.score_breakdown.walk_forward_metrics.total_windows, 1)
+        self.assertEqual(result.score_breakdown.walk_forward_metrics.window_pass_rate, 1.0)
+
+    def test_walk_forward_builds_multiple_windows_and_persists_runs(self) -> None:
+        walk_forward_pipeline = MinerPipeline(
+            strategy_service=self.pipeline.strategy_service,
+            backtest_service=self.pipeline.backtest_service,
+            strategy_repository=self.pipeline.strategy_repository,
+            backtest_repository=self.pipeline.backtest_repository,
+            filters=MinerFilterConfig(min_trades=1, min_net_profit=0.0, max_drawdown=100.0, min_profit_factor=0.0),
+            execution_parameters={"fill_policy": "next_candle_open"},
+            evaluation=MinerEvaluationConfig(
+                mode="robust_walk_forward",
+                train_ratio=1 / 3,
+                test_ratio=1 / 3,
+                minimum_partition_size=5,
+            ),
+        )
+
+        result = walk_forward_pipeline.process_candidate(_robust_sell_candidate(), _walk_forward_consistent_candles())
+
+        self.assertEqual(result.status, "accepted")
+        self.assertEqual(len(result.window_backtest_run_ids), 4)
+        self.assertEqual(result.score_breakdown.walk_forward_metrics.total_windows, 2)
+        self.assertEqual(result.score_breakdown.walk_forward_metrics.approved_windows, 2)
+        self.assertGreater(result.score, 0.0)
+        persisted_runs = [row for row in self.db.tables.get("backtest_runs", []) if row["id"] in result.window_backtest_run_ids]
+        self.assertEqual(len(persisted_runs), 4)
+        self.assertEqual({row["dataset_role"] for row in persisted_runs}, {"train", "test"})
+        self.assertEqual({row["evaluation_mode"] for row in persisted_runs}, {"robust_walk_forward"})
+        self.assertEqual({row["campaign_id"] for row in persisted_runs}, {"primary:robust_walk_forward"})
+
+    def test_walk_forward_filters_strategy_that_only_works_in_one_window(self) -> None:
+        walk_forward_pipeline = MinerPipeline(
+            strategy_service=self.pipeline.strategy_service,
+            backtest_service=self.pipeline.backtest_service,
+            strategy_repository=self.pipeline.strategy_repository,
+            backtest_repository=self.pipeline.backtest_repository,
+            filters=MinerFilterConfig(min_trades=1, min_net_profit=0.0, max_drawdown=100.0, min_profit_factor=0.0),
+            execution_parameters={"fill_policy": "next_candle_open"},
+            evaluation=MinerEvaluationConfig(
+                mode="robust_walk_forward",
+                train_ratio=1 / 3,
+                test_ratio=1 / 3,
+                minimum_partition_size=5,
+                minimum_window_pass_rate=1.0,
+            ),
+        )
+
+        result = walk_forward_pipeline.process_candidate(_overfit_buy_candidate(), _walk_forward_unstable_candles())
+
+        self.assertEqual(result.status, "filtered")
+        self.assertTrue(result.rejection_reason.startswith("walk_forward:"))
+        self.assertEqual(result.score_breakdown.walk_forward_metrics.total_windows, 2)
+        self.assertEqual(result.score_breakdown.walk_forward_metrics.approved_windows, 1)
+        self.assertLess(result.score_breakdown.walk_forward_metrics.window_pass_rate, 1.0)
+
+    def test_walk_forward_scoring_ranks_consistent_strategy_above_unstable_one(self) -> None:
+        filters = MinerFilterConfig(min_trades=1, min_net_profit=0.0, max_drawdown=100.0, min_profit_factor=0.0)
+
+        consistent_spec = normalize_strategy(_robust_sell_candidate())
+        consistent_frame = _walk_forward_consistent_candles()
+        consistent_windows = [
+            (
+                run_backtest(consistent_spec, consistent_frame.iloc[:5].reset_index(drop=True)),
+                run_backtest(consistent_spec, consistent_frame.iloc[5:10].reset_index(drop=True)),
+                "window_0",
+            ),
+            (
+                run_backtest(consistent_spec, consistent_frame.iloc[:10].reset_index(drop=True)),
+                run_backtest(consistent_spec, consistent_frame.iloc[10:15].reset_index(drop=True)),
+                "window_1",
+            ),
+        ]
+        consistent_score = score_walk_forward_results(consistent_windows, filters, minimum_window_pass_rate=1.0)
+
+        unstable_spec = normalize_strategy(_overfit_buy_candidate())
+        unstable_frame = _walk_forward_unstable_candles()
+        unstable_windows = [
+            (
+                run_backtest(unstable_spec, unstable_frame.iloc[:5].reset_index(drop=True)),
+                run_backtest(unstable_spec, unstable_frame.iloc[5:10].reset_index(drop=True)),
+                "window_0",
+            ),
+            (
+                run_backtest(unstable_spec, unstable_frame.iloc[:10].reset_index(drop=True)),
+                run_backtest(unstable_spec, unstable_frame.iloc[10:15].reset_index(drop=True)),
+                "window_1",
+            ),
+        ]
+        unstable_score = score_walk_forward_results(unstable_windows, filters, minimum_window_pass_rate=1.0)
+
+        self.assertTrue(consistent_score.passed_filters)
+        self.assertFalse(unstable_score.passed_filters)
+        self.assertGreater(consistent_score.score, unstable_score.score)
+        self.assertGreater(
+            consistent_score.walk_forward_metrics.stability_between_windows,
+            unstable_score.walk_forward_metrics.stability_between_windows,
+        )
+        self.assertGreater(consistent_score.walk_forward_metrics.window_pass_rate, unstable_score.walk_forward_metrics.window_pass_rate)
 
     def test_miner_service_runs_batch(self) -> None:
         miner_service = MinerService(

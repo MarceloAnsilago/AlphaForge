@@ -17,7 +17,12 @@ class MinerEvaluationConfig:
     mode: str = "simple"
     split_method: str = "single_split"
     train_ratio: float = 0.7
+    test_ratio: float = 0.2
+    walk_forward_step_ratio: float | None = None
     minimum_partition_size: int = 20
+    minimum_window_pass_rate: float = 1.0
+    max_walk_forward_windows: int | None = None
+    expanding_train: bool = True
     dataset_id: str = "primary"
     additional_datasets: list[dict[str, Any]] = field(default_factory=list)
     walk_forward_windows: list[dict[str, Any]] = field(default_factory=list)
