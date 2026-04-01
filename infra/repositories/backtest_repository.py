@@ -22,6 +22,14 @@ class BacktestRepository:
         rows = self._db.select("backtest_runs", filters={"id": backtest_run_id}, limit=1)
         return rows[0] if rows else None
 
+    def find_run_by_input_fingerprint(self, input_fingerprint: str) -> dict[str, Any] | None:
+        rows = self._db.select("backtest_runs", filters={"input_fingerprint": input_fingerprint}, limit=1)
+        return rows[0] if rows else None
+
+    def get_backtest_metrics(self, backtest_run_id: str) -> dict[str, Any] | None:
+        rows = self._db.select("backtest_metrics", filters={"backtest_run_id": backtest_run_id}, limit=1)
+        return rows[0] if rows else None
+
     def list_backtest_trades(self, backtest_run_id: str) -> list[dict[str, Any]]:
         return self._db.select(
             "backtest_trades",
@@ -29,3 +37,11 @@ class BacktestRepository:
             order_by="trade_number",
             ascending=True,
         )
+
+    def update_backtest_run(self, backtest_run_id: str, values: dict[str, Any]) -> dict[str, Any] | None:
+        rows = self._db.update(
+            "backtest_runs",
+            filters={"id": backtest_run_id},
+            values=values,
+        )
+        return rows[0] if rows else None

@@ -4,6 +4,10 @@ create table if not exists strategies (
     direction text not null,
     symbol text null,
     timeframe text null,
+    origin text not null default 'manual',
+    is_top_strategy boolean not null default false,
+    best_score double precision null,
+    best_backtest_run_id uuid null,
     latest_version_number integer not null default 0,
     current_version_id uuid null,
     created_at timestamptz not null default timezone('utc', now()),
@@ -39,6 +43,12 @@ create table if not exists backtest_runs (
     input_fingerprint text not null,
     candle_fingerprint text null,
     strategy_fingerprint text not null,
+    status text not null default 'completed',
+    passed_filters boolean null,
+    score double precision null,
+    top_rank integer null,
+    rejection_reason text null,
+    is_top_strategy boolean not null default false,
     created_at timestamptz not null default timezone('utc', now())
 );
 

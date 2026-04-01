@@ -18,6 +18,7 @@ class StrategyRepository:
         direction: str,
         symbol: str | None,
         timeframe: str | None,
+        origin: str = "manual",
     ) -> dict[str, Any]:
         return self._db.insert(
             "strategies",
@@ -27,6 +28,10 @@ class StrategyRepository:
                 "direction": direction,
                 "symbol": symbol,
                 "timeframe": timeframe,
+                "origin": origin,
+                "is_top_strategy": False,
+                "best_score": None,
+                "best_backtest_run_id": None,
                 "latest_version_number": 0,
                 "current_version_id": None,
                 "created_at": utc_now_iso(),
@@ -61,6 +66,14 @@ class StrategyRepository:
         )
         return rows[0] if rows else None
 
+    def find_any_version_by_fingerprint(self, strategy_fingerprint: str) -> dict[str, Any] | None:
+        rows = self._db.select(
+            "strategy_versions",
+            filters={"strategy_fingerprint": strategy_fingerprint},
+            limit=1,
+        )
+        return rows[0] if rows else None
+
     def set_current_version(self, strategy_id: str, strategy_version_id: str, latest_version_number: int) -> dict[str, Any] | None:
         rows = self._db.update(
             "strategies",
@@ -68,6 +81,17 @@ class StrategyRepository:
             values={
                 "current_version_id": strategy_version_id,
                 "latest_version_number": latest_version_number,
+                "updated_at": utc_now_iso(),
+            },
+        )
+        return rows[0] if rows else None
+
+    def update_strategy(self, strategy_id: str, values: dict[str, Any]) -> dict[str, Any] | None:
+        rows = self._db.update(
+            "strategies",
+            filters={"id": strategy_id},
+            values={
+                **values,
                 "updated_at": utc_now_iso(),
             },
         )

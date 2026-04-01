@@ -1,25 +1,17 @@
 from __future__ import annotations
 
-from hashlib import sha256
 from typing import Any
 
-import json
 import uuid
 
 import pandas as pd
 
 from core.backtest_engine import run_backtest
+from domain.miner.fingerprint import backtest_input_fingerprint, candle_frame_fingerprint, strategy_spec_fingerprint
 from domain.strategy.normalizer import normalize_strategy
 from domain.strategy.spec import StrategyDraft, StrategySpec
 from infra.db.supabase_client import utc_now_iso
 from infra.repositories.backtest_repository import BacktestRepository
-from services.strategy_service import strategy_spec_fingerprint
-
-
-def _stable_json_hash(payload: dict[str, Any]) -> str:
-    serialized = json.dumps(payload, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
-    return sha256(serialized.encode("utf-8")).hexdigest()
-
 
 def _iso_or_none(value: Any) -> str | None:
     if value is None or pd.isna(value):
@@ -27,16 +19,6 @@ def _iso_or_none(value: Any) -> str | None:
     if hasattr(value, "isoformat"):
         return value.isoformat()
     return str(value)
-
-
-def candle_frame_fingerprint(candles: pd.DataFrame) -> str:
-    if candles.empty:
-        return _stable_json_hash({"candles": []})
-
-    normalized = candles.copy()
-    normalized["time"] = normalized["time"].astype(str)
-    records = normalized.to_dict(orient="records")
-    return _stable_json_hash({"candles": records})
 
 
 class BacktestService:
@@ -80,6 +62,12 @@ class BacktestService:
         candle_fingerprint = candle_frame_fingerprint(candles)
         period_start = _iso_or_none(candles.iloc[0]["time"]) if not candles.empty else None
         period_end = _iso_or_none(candles.iloc[-1]["time"]) if not candles.empty else None
+        input_fingerprint = backtest_input_fingerprint(
+            strategy_version_id=strategy_version["id"],
+            strategy_spec=strategy_spec,
+            candles=candles,
+            execution_parameters=execution_parameters,
+        )
         run_payload = {
             "strategy_version_id": strategy_version["id"],
             "strategy_id": strategy_version["strategy_id"],
@@ -91,18 +79,13 @@ class BacktestService:
             "execution_parameters": execution_parameters,
             "candle_fingerprint": candle_fingerprint,
             "strategy_fingerprint": strategy_fingerprint,
-            "input_fingerprint": _stable_json_hash(
-                {
-                    "strategy_version_id": strategy_version["id"],
-                    "strategy_fingerprint": strategy_fingerprint,
-                    "candle_fingerprint": candle_fingerprint,
-                    "execution_parameters": execution_parameters,
-                    "symbol": strategy_spec.market.get("symbol"),
-                    "timeframe": strategy_spec.market.get("timeframe"),
-                    "period_start": period_start,
-                    "period_end": period_end,
-                }
-            ),
+            "input_fingerprint": input_fingerprint,
+            "status": "completed",
+            "passed_filters": None,
+            "score": None,
+            "top_rank": None,
+            "rejection_reason": None,
+            "is_top_strategy": False,
             "id": str(uuid.uuid4()),
             "created_at": utc_now_iso(),
         }

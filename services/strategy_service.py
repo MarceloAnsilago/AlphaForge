@@ -1,33 +1,27 @@
 from __future__ import annotations
 
-from hashlib import sha256
 from typing import Any
 
-import json
 import uuid
 
+from domain.miner.fingerprint import strategy_spec_fingerprint
 from domain.strategy.normalizer import normalize_strategy
 from domain.strategy.spec import StrategyDraft, StrategySpec
 from infra.db.supabase_client import utc_now_iso
 from infra.repositories.strategy_repository import StrategyRepository
 
-
-def strategy_spec_fingerprint(strategy_spec: StrategySpec) -> str:
-    serialized = json.dumps(strategy_spec.to_dict(), sort_keys=True, ensure_ascii=True, separators=(",", ":"))
-    return sha256(serialized.encode("utf-8")).hexdigest()
-
-
 class StrategyService:
     def __init__(self, strategy_repository: StrategyRepository) -> None:
         self._strategy_repository = strategy_repository
 
-    def create_strategy(self, strategy: dict[str, Any] | StrategyDraft | StrategySpec) -> dict[str, Any]:
+    def create_strategy(self, strategy: dict[str, Any] | StrategyDraft | StrategySpec, origin: str = "manual") -> dict[str, Any]:
         strategy_spec = normalize_strategy(strategy)
         strategy_row = self._strategy_repository.create_strategy(
             name=strategy_spec.name,
             direction=strategy_spec.direction,
             symbol=strategy_spec.market.get("symbol"),
             timeframe=strategy_spec.market.get("timeframe"),
+            origin=origin,
         )
         version_row = self._create_strategy_version_row(strategy_row["id"], 1, strategy_spec)
         version = self._strategy_repository.create_strategy_version(version_row)
