@@ -22,6 +22,14 @@ class BacktestRepository:
         rows = self._db.select("backtest_runs", filters={"id": backtest_run_id}, limit=1)
         return rows[0] if rows else None
 
+    def list_backtest_runs(self, strategy_version_id: str) -> list[dict[str, Any]]:
+        return self._db.select(
+            "backtest_runs",
+            filters={"strategy_version_id": strategy_version_id},
+            order_by="created_at",
+            ascending=False,
+        )
+
     def find_run_by_input_fingerprint(self, input_fingerprint: str) -> dict[str, Any] | None:
         rows = self._db.select("backtest_runs", filters={"input_fingerprint": input_fingerprint}, limit=1)
         return rows[0] if rows else None

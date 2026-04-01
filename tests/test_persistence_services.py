@@ -91,6 +91,10 @@ class PersistenceServicesTests(unittest.TestCase):
         persistence = execution["persistence"]
         self.assertEqual(persistence["backtest_run"]["strategy_version_id"], created["strategy_version"]["id"])
         self.assertEqual(persistence["backtest_metrics"]["total_trades"], 1)
+        self.assertIn("profit_factor", persistence["backtest_metrics"])
+        self.assertIn("expectancy", persistence["backtest_metrics"])
+        self.assertIn("average_return_per_trade", persistence["backtest_metrics"])
+        self.assertIn("pnl_variance", persistence["backtest_metrics"])
         self.assertEqual(len(persistence["backtest_trades"]), 1)
         self.assertTrue(persistence["backtest_run"]["input_fingerprint"])
 

@@ -58,6 +58,10 @@ class BacktestEngineExecutionTests(unittest.TestCase):
         self.assertEqual(float(trade["entry_price"]), 11.0)
         self.assertEqual(int(trade["exit_index"]), 4)
         self.assertEqual(trade["exit_reason"], "end_of_data")
+        self.assertAlmostEqual(float(result["summary"]["average_return_per_trade"]), 3.2)
+        self.assertGreater(float(result["summary"]["profit_factor"]), 0.0)
+        self.assertAlmostEqual(float(result["summary"]["expectancy"]), 3.2)
+        self.assertEqual(float(result["summary"]["pnl_variance"]), 0.0)
 
     def test_entry_and_exit_use_next_candle_open_with_spread(self) -> None:
         candles = _candles()

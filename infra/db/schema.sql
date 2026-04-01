@@ -63,8 +63,12 @@ create table if not exists backtest_metrics (
     gross_loss double precision not null default 0,
     net_profit double precision not null default 0,
     average_pnl double precision not null default 0,
+    average_return_per_trade double precision not null default 0,
     average_holding_bars double precision not null default 0,
     max_drawdown double precision not null default 0,
+    profit_factor double precision not null default 0,
+    expectancy double precision not null default 0,
+    pnl_variance double precision not null default 0,
     summary jsonb not null,
     created_at timestamptz not null default timezone('utc', now())
 );

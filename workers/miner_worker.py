@@ -11,6 +11,7 @@ from infra.repositories.strategy_repository import StrategyRepository
 from services.backtest_service import BacktestService
 from services.miner_service import MinerService
 from services.strategy_service import StrategyService
+from domain.miner.space import MinerEvaluationConfig
 
 
 def _load_candles(csv_path: str) -> pd.DataFrame:
@@ -37,6 +38,9 @@ def main() -> None:
     parser.add_argument("--top-k", type=int, default=5, help="Quantidade de top estrategias marcadas.")
     parser.add_argument("--max-rules", type=int, default=2, help="Numero maximo de regras por estrategia.")
     parser.add_argument("--db", choices=["memory", "supabase"], default="memory", help="Backend de persistencia.")
+    parser.add_argument("--mode", choices=["simple", "robust"], default="simple", help="Modo de avaliacao do minerador.")
+    parser.add_argument("--train-ratio", type=float, default=0.7, help="Percentual do dataset usado no treino no modo robusto.")
+    parser.add_argument("--min-split-bars", type=int, default=20, help="Numero minimo de candles por particao no modo robusto.")
     args = parser.parse_args()
 
     candles = _load_candles(args.dataset)
@@ -60,6 +64,11 @@ def main() -> None:
         seed=args.seed,
         top_k=args.top_k,
         max_rules_per_strategy=args.max_rules,
+        evaluation=MinerEvaluationConfig(
+            mode=args.mode,
+            train_ratio=args.train_ratio,
+            minimum_partition_size=args.min_split_bars,
+        ),
     )
     print(json.dumps(result["summary"], ensure_ascii=True, indent=2))
 

@@ -13,6 +13,17 @@ class MinerFilterConfig:
 
 
 @dataclass(slots=True)
+class MinerEvaluationConfig:
+    mode: str = "simple"
+    split_method: str = "single_split"
+    train_ratio: float = 0.7
+    minimum_partition_size: int = 20
+    dataset_id: str = "primary"
+    additional_datasets: list[dict[str, Any]] = field(default_factory=list)
+    walk_forward_windows: list[dict[str, Any]] = field(default_factory=list)
+
+
+@dataclass(slots=True)
 class MinerSearchSpace:
     indicators: list[str]
     operators: list[str]
@@ -45,6 +56,7 @@ class MinerSearchSpace:
         }
     )
     filters: MinerFilterConfig = field(default_factory=MinerFilterConfig)
+    evaluation: MinerEvaluationConfig = field(default_factory=MinerEvaluationConfig)
 
 
 def default_search_space(
@@ -55,6 +67,7 @@ def default_search_space(
     initial_volume: float = 1.0,
     fixed_spread: float = 0.0,
     filters: MinerFilterConfig | None = None,
+    evaluation: MinerEvaluationConfig | None = None,
 ) -> MinerSearchSpace:
     return MinerSearchSpace(
         indicators=["SMA", "EMA", "RSI", "MACD", "Bandas de Bollinger"],
@@ -78,4 +91,5 @@ def default_search_space(
             "backtest": {"fixed_spread": fixed_spread},
         },
         filters=filters or MinerFilterConfig(),
+        evaluation=evaluation or MinerEvaluationConfig(),
     )

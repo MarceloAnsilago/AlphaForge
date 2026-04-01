@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 import uuid
+from math import isfinite
 
 import pandas as pd
 
@@ -19,6 +20,22 @@ def _iso_or_none(value: Any) -> str | None:
     if hasattr(value, "isoformat"):
         return value.isoformat()
     return str(value)
+
+
+def _json_safe_value(value: Any) -> Any:
+    if isinstance(value, float) and not isfinite(value):
+        return "inf" if value > 0 else "-inf"
+    return value
+
+
+def _finite_metric(value: Any, default: float = 0.0) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return default
+    if isfinite(number):
+        return number
+    return 1_000_000.0 if number > 0 else default
 
 
 class BacktestService:
@@ -91,22 +108,27 @@ class BacktestService:
         }
         run_row = self._backtest_repository.create_backtest_run(run_payload)
 
-        summary = dict(backtest_result["summary"])
+        raw_summary = dict(backtest_result["summary"])
+        summary = {key: _json_safe_value(value) for key, value in raw_summary.items()}
         metrics_row = self._backtest_repository.create_backtest_metrics(
             {
                 "id": str(uuid.uuid4()),
                 "backtest_run_id": run_row["id"],
                 "summary": summary,
-                "total_trades": int(summary.get("total_trades", 0)),
-                "winning_trades": int(summary.get("winning_trades", 0)),
-                "losing_trades": int(summary.get("losing_trades", 0)),
-                "win_rate": float(summary.get("win_rate", 0.0)),
-                "gross_profit": float(summary.get("gross_profit", 0.0)),
-                "gross_loss": float(summary.get("gross_loss", 0.0)),
-                "net_profit": float(summary.get("net_profit", 0.0)),
-                "average_pnl": float(summary.get("average_pnl", 0.0)),
-                "average_holding_bars": float(summary.get("average_holding_bars", 0.0)),
-                "max_drawdown": float(summary.get("max_drawdown", 0.0)),
+                "total_trades": int(raw_summary.get("total_trades", 0)),
+                "winning_trades": int(raw_summary.get("winning_trades", 0)),
+                "losing_trades": int(raw_summary.get("losing_trades", 0)),
+                "win_rate": _finite_metric(raw_summary.get("win_rate", 0.0)),
+                "gross_profit": _finite_metric(raw_summary.get("gross_profit", 0.0)),
+                "gross_loss": _finite_metric(raw_summary.get("gross_loss", 0.0)),
+                "net_profit": _finite_metric(raw_summary.get("net_profit", 0.0)),
+                "average_pnl": _finite_metric(raw_summary.get("average_pnl", 0.0)),
+                "average_return_per_trade": _finite_metric(raw_summary.get("average_return_per_trade", 0.0)),
+                "average_holding_bars": _finite_metric(raw_summary.get("average_holding_bars", 0.0)),
+                "max_drawdown": _finite_metric(raw_summary.get("max_drawdown", 0.0)),
+                "profit_factor": _finite_metric(raw_summary.get("profit_factor", 0.0)),
+                "expectancy": _finite_metric(raw_summary.get("expectancy", 0.0)),
+                "pnl_variance": _finite_metric(raw_summary.get("pnl_variance", 0.0)),
                 "created_at": utc_now_iso(),
             }
         )

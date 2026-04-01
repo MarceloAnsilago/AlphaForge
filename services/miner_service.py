@@ -7,7 +7,7 @@ import pandas as pd
 
 from domain.miner.generator import RandomStrategyGenerator
 from domain.miner.pipeline import MinerPipeline, MinerPipelineResult
-from domain.miner.space import MinerFilterConfig, MinerSearchSpace, default_search_space
+from domain.miner.space import MinerEvaluationConfig, MinerFilterConfig, MinerSearchSpace, default_search_space
 from infra.repositories.backtest_repository import BacktestRepository
 from infra.repositories.strategy_repository import StrategyRepository
 from services.backtest_service import BacktestService
@@ -52,6 +52,7 @@ class MinerService:
         top_k: int = 5,
         max_rules_per_strategy: int = 2,
         filters: MinerFilterConfig | None = None,
+        evaluation: MinerEvaluationConfig | None = None,
         execution_parameters: dict[str, Any] | None = None,
         initial_volume: float = 1.0,
         fixed_spread: float = 0.0,
@@ -63,6 +64,7 @@ class MinerService:
             initial_volume=initial_volume,
             fixed_spread=fixed_spread,
             filters=filters,
+            evaluation=evaluation,
         )
         return self.mine_batch_with_space(
             candles=candles,
@@ -91,6 +93,7 @@ class MinerService:
             backtest_repository=self._backtest_repository,
             filters=search_space.filters,
             execution_parameters=dict(execution_parameters or {"fill_policy": "next_candle_open"}),
+            evaluation=search_space.evaluation,
         )
 
         results: list[MinerPipelineResult] = []
