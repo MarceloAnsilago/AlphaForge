@@ -11,6 +11,15 @@ from builders.settings_builder import build_settings
 from builders.strategy_builder import build_strategy_payload
 from core.backtest_engine import run_backtest
 from state import get_state
+from ui.backend import get_ui_backend_context
+from ui.mining_pages import (
+    render_backend_status,
+    render_campaign_detail_page,
+    render_campaigns_page,
+    render_mining_pages_style,
+    render_sidebar_navigation,
+    render_strategy_detail_page,
+)
 from ui.tabs import (
     apply_page_style,
     create_main_tabs,
@@ -134,12 +143,7 @@ def _render_backtest(backtest_result: dict[str, Any], market_data: pd.DataFrame)
     st.dataframe(trades, use_container_width=True)
 
 
-def render_app() -> None:
-    st.set_page_config(page_title="AlphaForge", layout="wide")
-
-    state = get_state()
-    apply_page_style()
-
+def render_builder_page(state: dict[str, Any]) -> None:
     st.title("AlphaForge - Strategy Builder")
     st.caption("Visual builder para estrategias de trading integradas ao MetaTrader 5.")
 
@@ -220,6 +224,29 @@ def render_app() -> None:
                 _render_backtest(backtest_result, market_data)
         else:
             st.info("Carregue candles do MT5 para executar o backtest simples.")
+
+
+def render_app() -> None:
+    st.set_page_config(page_title="AlphaForge", layout="wide")
+
+    state = get_state()
+    apply_page_style()
+    render_mining_pages_style()
+
+    backend = get_ui_backend_context()
+    current_page = render_sidebar_navigation(state)
+    render_backend_status(backend)
+
+    if current_page == "Builder":
+        render_builder_page(state)
+        return
+    if current_page == "Campanhas":
+        render_campaigns_page(backend, state)
+        return
+    if current_page == "Detalhe da Campanha":
+        render_campaign_detail_page(backend, state)
+        return
+    render_strategy_detail_page(backend, state)
 
 
 render_app()

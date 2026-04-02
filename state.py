@@ -8,6 +8,10 @@ import streamlit as st
 
 def _build_default_state() -> dict[str, Any]:
     return {
+        "ui_page": "Builder",
+        "selected_campaign_id": None,
+        "selected_strategy_version_id": None,
+        "selected_backtest_run_id": None,
         "mt5_connected": False,
         "mt5_status": "",
         "symbols_status": "",
