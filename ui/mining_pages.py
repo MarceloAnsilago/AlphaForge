@@ -10,7 +10,9 @@ from ui.backend import UiBackendContext
 from ui.mining_helpers import (
     build_equity_curve_frame,
     build_walk_forward_frame,
+    filter_campaign_rows,
     filter_strategy_rows,
+    paginate_rows,
     summarize_strategy_rules,
 )
 
@@ -46,6 +48,47 @@ def render_mining_pages_style() -> None:
                 background: #ffffff;
                 margin-bottom: 0.65rem;
             }
+
+            .top-strategy-card {
+                border: 1px solid #cbd8ea;
+                border-radius: 18px;
+                padding: 1rem 1.05rem;
+                background: linear-gradient(160deg, #fefefe, #eef6ff);
+                min-height: 160px;
+            }
+
+            .top-strategy-rank {
+                display: inline-flex;
+                align-items: center;
+                border-radius: 999px;
+                padding: 0.2rem 0.6rem;
+                background: #123a6b;
+                color: #ffffff;
+                font-size: 0.78rem;
+                font-weight: 700;
+                margin-bottom: 0.7rem;
+            }
+
+            .top-strategy-name {
+                font-size: 1rem;
+                font-weight: 700;
+                color: #10233d;
+                margin-bottom: 0.35rem;
+            }
+
+            .top-strategy-meta {
+                font-size: 0.83rem;
+                color: #5b6f87;
+                margin-bottom: 0.85rem;
+            }
+
+            .nav-strip {
+                border: 1px solid #dbe4f0;
+                border-radius: 16px;
+                padding: 0.8rem 0.95rem;
+                background: #fbfdff;
+                margin-bottom: 1rem;
+            }
         </style>
         """,
         unsafe_allow_html=True,
@@ -80,11 +123,18 @@ def render_campaigns_page(backend: UiBackendContext, state: dict[str, Any]) -> N
         st.info("Nenhuma campanha encontrada no backend configurado.")
         return
 
-    summaries = [backend.mining_campaign_service.get_campaign_summary(item["id"]) for item in campaigns]
-    total_campaigns = len(campaigns)
-    completed_campaigns = sum(1 for item in campaigns if item.get("status") == "completed")
-    total_approved = sum(int((summary or {}).get("approved_quantity", 0)) for summary in summaries)
-    avg_stability = _mean_or_zero(float((summary or {}).get("average_stability", 0.0)) for summary in summaries)
+    summaries = {
+        item["id"]: backend.mining_campaign_service.get_campaign_summary(item["id"])
+        for item in campaigns
+    }
+    filtered_campaigns = _render_campaign_filters(campaigns, summaries)
+
+    total_campaigns = len(filtered_campaigns)
+    completed_campaigns = sum(1 for item in filtered_campaigns if item.get("status") == "completed")
+    total_approved = sum(int((item.get("summary") or {}).get("approved_quantity", 0)) for item in filtered_campaigns)
+    avg_stability = _mean_or_zero(
+        float((item.get("summary") or {}).get("average_stability", 0.0)) for item in filtered_campaigns
+    )
 
     metric_cols = st.columns(4)
     metric_cols[0].metric("Campanhas", total_campaigns)
@@ -92,9 +142,27 @@ def render_campaigns_page(backend: UiBackendContext, state: dict[str, Any]) -> N
     metric_cols[2].metric("Aprovadas", total_approved)
     metric_cols[3].metric("Estabilidade media", f"{avg_stability:.2f}")
 
-    for campaign, summary in zip(campaigns, summaries):
-        summary = summary or {}
-        cols = st.columns([4.5, 1.4, 1.2, 1.2, 1.2, 1.4])
+    pagination = _render_pagination_controls(
+        state=state,
+        prefix="campaigns",
+        total_items=len(filtered_campaigns),
+        default_page_size=8,
+        label="campanhas",
+    )
+    page_data = paginate_rows(
+        filtered_campaigns,
+        page=pagination["page"],
+        page_size=pagination["page_size"],
+    )
+    _sync_pagination_state(state, "campaigns", page_data)
+
+    if not page_data["items"]:
+        st.info("Nenhuma campanha atende aos filtros atuais.")
+        return
+
+    for campaign in page_data["items"]:
+        summary = campaign.get("summary") or {}
+        cols = st.columns([4.5, 1.2, 1.1, 1.1, 1.1, 1.35])
         with cols[0]:
             st.markdown(
                 (
@@ -113,10 +181,12 @@ def render_campaigns_page(backend: UiBackendContext, state: dict[str, Any]) -> N
         cols[2].metric("Dedup", int(summary.get("deduplicated_quantity", 0)))
         cols[3].metric("Aprovadas", int(summary.get("approved_quantity", 0)))
         cols[4].metric("Pass rate", f"{float(summary.get('average_pass_rate', 0.0)):.2f}")
-        if cols[5].button("Detalhes", key=f"campaign-detail-{campaign['id']}", use_container_width=True):
+        if cols[5].button("Abrir campanha", key=f"campaign-detail-{campaign['id']}", use_container_width=True):
             state["selected_campaign_id"] = campaign["id"]
             state["ui_page"] = "Detalhe da Campanha"
             st.rerun()
+
+    _render_pagination_summary(page_data, item_label="campanhas")
 
 
 def render_campaign_detail_page(backend: UiBackendContext, state: dict[str, Any]) -> None:
@@ -157,6 +227,13 @@ def render_campaign_detail_page(backend: UiBackendContext, state: dict[str, Any]
         f"Mercado: {campaign.get('symbol') or '-'} {campaign.get('timeframe') or ''}"
     )
 
+    nav_cols = st.columns([1.4, 1.2, 4.0])
+    if nav_cols[0].button("Voltar para campanhas", use_container_width=True):
+        state["ui_page"] = "Campanhas"
+        st.rerun()
+    if nav_cols[1].button("Recarregar", use_container_width=True):
+        st.rerun()
+
     metric_cols = st.columns(6)
     metric_cols[0].metric("Geradas", int(summary.get("generated_quantity", campaign.get("quantity", 0))))
     metric_cols[1].metric("Deduplicadas", int(summary.get("deduplicated_quantity", 0)))
@@ -166,13 +243,32 @@ def render_campaign_detail_page(backend: UiBackendContext, state: dict[str, Any]
     metric_cols[5].metric("Runs finais", int(summary.get("final_run_count", 0)))
 
     st.subheader("Top estrategias")
+    top_n = st.slider("Destaque Top N", min_value=3, max_value=max(len(top_strategies), 3), value=min(5, max(len(top_strategies), 3)))
+    _render_top_strategy_cards(top_strategies[:top_n], state)
+
+    st.subheader("Ranking completo")
     filtered_rows = _render_strategy_filters(top_strategies)
-    if not filtered_rows:
+    _sync_strategy_navigation_state(state, filtered_rows)
+    pagination = _render_pagination_controls(
+        state=state,
+        prefix="campaign_strategies",
+        total_items=len(filtered_rows),
+        default_page_size=10,
+        label="estrategias",
+    )
+    page_data = paginate_rows(
+        filtered_rows,
+        page=pagination["page"],
+        page_size=pagination["page_size"],
+    )
+    _sync_pagination_state(state, "campaign_strategies", page_data)
+
+    if not page_data["items"]:
         st.info("Nenhuma estrategia atende aos filtros atuais.")
     else:
-        for rank, row in enumerate(filtered_rows, start=1):
-            cols = st.columns([0.8, 2.8, 1.1, 1.1, 1.1, 1.1, 1.4])
-            cols[0].markdown(f"**#{row.get('top_rank') or rank}**")
+        for rank_offset, row in enumerate(page_data["items"], start=page_data["start_index"] + 1):
+            cols = st.columns([0.9, 2.8, 1.0, 1.0, 1.1, 1.1, 1.55])
+            cols[0].markdown(f"**#{row.get('top_rank') or rank_offset}**")
             cols[1].markdown(
                 f"**{row.get('strategy_name') or row.get('strategy_id')}**  \n"
                 f"`{row.get('strategy_direction') or '-'}` | v{row.get('version_number') or '-'}"
@@ -182,11 +278,11 @@ def render_campaign_detail_page(backend: UiBackendContext, state: dict[str, Any]
             metrics = row.get("metrics") or {}
             cols[4].metric("PnL", f"{float(metrics.get('net_profit', 0.0)):.2f}")
             cols[5].metric("PF", f"{float(metrics.get('profit_factor', 0.0)):.2f}")
-            if cols[6].button("Abrir", key=f"open-strategy-{row['backtest_run_id']}", use_container_width=True):
-                state["selected_backtest_run_id"] = row["backtest_run_id"]
-                state["selected_strategy_version_id"] = row.get("strategy_version_id")
-                state["ui_page"] = "Detalhe da Estrategia"
+            if cols[6].button("Abrir estrategia", key=f"open-strategy-{row['backtest_run_id']}", use_container_width=True):
+                _select_strategy(state, filtered_rows, row["backtest_run_id"], row.get("strategy_version_id"), campaign["id"])
                 st.rerun()
+
+        _render_pagination_summary(page_data, item_label="estrategias")
 
     st.subheader("Walk-forward")
     if window_performance:
@@ -220,6 +316,8 @@ def render_strategy_detail_page(backend: UiBackendContext, state: dict[str, Any]
         f"Modo: {run.get('evaluation_mode')} | "
         f"Status: {run.get('status')}"
     )
+
+    _render_strategy_navigation_strip(state, run)
 
     header_cols = st.columns([4, 1.2])
     header_cols[0].subheader(title_name)
@@ -262,7 +360,7 @@ def render_strategy_detail_page(backend: UiBackendContext, state: dict[str, Any]
     if equity_curve.empty:
         st.info("Nenhum trade encontrado para este run.")
     else:
-        st.line_chart(equity_curve.set_index("time")[["equity"]], use_container_width=True)
+        render_equity_curve_section(equity_curve)
 
     strategy_window_rows = _build_strategy_window_rows(backend, run)
     if strategy_window_rows:
@@ -290,33 +388,57 @@ def render_walk_forward_section(window_rows: list[dict[str, Any]]) -> None:
     chart_frame = frame.copy()
     chart_frame["window_label"] = chart_frame["window_label"].fillna("window_0")
     chart_frame["dataset_role"] = chart_frame["dataset_role"].fillna("full")
+    chart_frame["pass_rate_pct"] = chart_frame["pass_rate"].fillna(0.0) * 100.0
 
-    score_chart = (
+    score_bars = (
         alt.Chart(chart_frame)
-        .mark_bar()
+        .mark_bar(cornerRadiusTopLeft=6, cornerRadiusTopRight=6)
         .encode(
             x=alt.X("window_label:N", title="Janela"),
             y=alt.Y("average_score:Q", title="Score medio"),
             color=alt.Color("dataset_role:N", title="Role"),
-            tooltip=["window_label:N", "dataset_role:N", "average_score:Q", "pass_rate:Q", "average_stability:Q"],
+            tooltip=[
+                alt.Tooltip("window_label:N", title="Janela"),
+                alt.Tooltip("dataset_role:N", title="Role"),
+                alt.Tooltip("average_score:Q", title="Score", format=".2f"),
+                alt.Tooltip("pass_rate_pct:Q", title="Pass rate %", format=".1f"),
+                alt.Tooltip("average_stability:Q", title="Estabilidade", format=".2f"),
+            ],
         )
-        .properties(height=280)
     )
-    stability_chart = (
+    stability_line = (
         alt.Chart(chart_frame)
         .mark_line(point=True, strokeWidth=3)
         .encode(
             x=alt.X("window_label:N", title="Janela"),
             y=alt.Y("average_stability:Q", title="Estabilidade media"),
             color=alt.Color("dataset_role:N", title="Role"),
-            tooltip=["window_label:N", "dataset_role:N", "average_stability:Q", "pass_rate:Q"],
+            tooltip=[
+                alt.Tooltip("window_label:N", title="Janela"),
+                alt.Tooltip("dataset_role:N", title="Role"),
+                alt.Tooltip("average_stability:Q", title="Estabilidade", format=".2f"),
+                alt.Tooltip("pass_rate_pct:Q", title="Pass rate %", format=".1f"),
+            ],
         )
-        .properties(height=280)
+    )
+    pass_rate_line = (
+        alt.Chart(chart_frame)
+        .mark_line(point=True, strokeDash=[6, 3], strokeWidth=2)
+        .encode(
+            x=alt.X("window_label:N", title="Janela"),
+            y=alt.Y("pass_rate_pct:Q", title="Pass rate %"),
+            color=alt.Color("dataset_role:N", title="Role"),
+            tooltip=[
+                alt.Tooltip("window_label:N", title="Janela"),
+                alt.Tooltip("dataset_role:N", title="Role"),
+                alt.Tooltip("pass_rate_pct:Q", title="Pass rate %", format=".1f"),
+            ],
+        )
     )
 
     chart_cols = st.columns(2)
-    chart_cols[0].altair_chart(score_chart, use_container_width=True)
-    chart_cols[1].altair_chart(stability_chart, use_container_width=True)
+    chart_cols[0].altair_chart(score_bars.properties(height=300), use_container_width=True)
+    chart_cols[1].altair_chart((stability_line + pass_rate_line).properties(height=300), use_container_width=True)
     st.dataframe(
         frame.loc[
             :,
@@ -336,6 +458,79 @@ def render_walk_forward_section(window_rows: list[dict[str, Any]]) -> None:
     )
 
 
+def render_equity_curve_section(equity_curve: pd.DataFrame) -> None:
+    curve = equity_curve.copy()
+    curve["time_label"] = curve["time"].astype(str)
+
+    equity_chart = (
+        alt.Chart(curve)
+        .mark_line(color="#0f766e", strokeWidth=3)
+        .encode(
+            x=alt.X("time:T", title="Tempo"),
+            y=alt.Y("equity:Q", title="Equity"),
+            tooltip=[
+                alt.Tooltip("trade_number:Q", title="Trade"),
+                alt.Tooltip("equity:Q", title="Equity", format=".2f"),
+                alt.Tooltip("pnl:Q", title="PnL", format=".2f"),
+                alt.Tooltip("drawdown:Q", title="Drawdown", format=".2f"),
+            ],
+        )
+        .properties(height=320)
+    )
+    pnl_bars = (
+        alt.Chart(curve)
+        .mark_bar(opacity=0.8)
+        .encode(
+            x=alt.X("time:T", title="Tempo"),
+            y=alt.Y("pnl:Q", title="PnL por trade"),
+            color=alt.condition("datum.pnl >= 0", alt.value("#16a34a"), alt.value("#dc2626")),
+            tooltip=[
+                alt.Tooltip("trade_number:Q", title="Trade"),
+                alt.Tooltip("pnl:Q", title="PnL", format=".2f"),
+                alt.Tooltip("equity:Q", title="Equity", format=".2f"),
+            ],
+        )
+        .properties(height=320)
+    )
+    drawdown_area = (
+        alt.Chart(curve)
+        .mark_area(color="#f59e0b", opacity=0.35)
+        .encode(
+            x=alt.X("time:T", title="Tempo"),
+            y=alt.Y("drawdown:Q", title="Drawdown"),
+            tooltip=[
+                alt.Tooltip("trade_number:Q", title="Trade"),
+                alt.Tooltip("drawdown:Q", title="Drawdown", format=".2f"),
+            ],
+        )
+        .properties(height=160)
+    )
+
+    chart_cols = st.columns(2)
+    chart_cols[0].altair_chart(equity_chart, use_container_width=True)
+    chart_cols[1].altair_chart(pnl_bars, use_container_width=True)
+    st.altair_chart(drawdown_area, use_container_width=True)
+
+
+def _render_campaign_filters(
+    campaigns: list[dict[str, Any]],
+    summaries: dict[str, dict[str, Any] | None],
+) -> list[dict[str, Any]]:
+    symbols = sorted({str(item.get("symbol") or "") for item in campaigns if item.get("symbol")})
+    timeframes = sorted({str(item.get("timeframe") or "") for item in campaigns if item.get("timeframe")})
+    filter_cols = st.columns(3)
+    query = filter_cols[0].text_input("Buscar campanha", key="campaign_filter_query")
+    symbol = filter_cols[1].selectbox("Simbolo", options=["Todos", *symbols], key="campaign_filter_symbol")
+    timeframe = filter_cols[2].selectbox("Timeframe", options=["Todos", *timeframes], key="campaign_filter_timeframe")
+    return filter_campaign_rows(
+        campaigns,
+        summaries,
+        query=query,
+        symbol=symbol,
+        timeframe=timeframe,
+    )
+
+
 def _render_strategy_filters(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     if not rows:
         return []
@@ -347,15 +542,16 @@ def _render_strategy_filters(rows: list[dict[str, Any]]) -> list[dict[str, Any]]
     available_statuses = sorted({str(item.get("status") or "") for item in rows if item.get("status")})
 
     filter_cols = st.columns(4)
-    query = filter_cols[0].text_input("Buscar", value="")
-    direction = filter_cols[1].selectbox("Direcao", options=["Todos", *available_directions])
-    status = filter_cols[2].selectbox("Status", options=["Todos", *available_statuses])
+    query = filter_cols[0].text_input("Buscar estrategia", key="strategy_filter_query")
+    direction = filter_cols[1].selectbox("Direcao", options=["Todos", *available_directions], key="strategy_filter_direction")
+    status = filter_cols[2].selectbox("Status", options=["Todos", *available_statuses], key="strategy_filter_status")
     if minimum_score != maximum_score:
         score_threshold = filter_cols[3].slider(
             "Score minimo",
             min_value=float(minimum_score),
             max_value=float(maximum_score),
             value=float(minimum_score),
+            key="strategy_filter_min_score",
         )
     else:
         filter_cols[3].metric("Score", f"{minimum_score:.2f}")
@@ -368,6 +564,141 @@ def _render_strategy_filters(rows: list[dict[str, Any]]) -> list[dict[str, Any]]
         status=status,
         minimum_score=score_threshold,
     )
+
+
+def _render_top_strategy_cards(rows: list[dict[str, Any]], state: dict[str, Any]) -> None:
+    if not rows:
+        st.info("Nenhuma estrategia aprovada para destacar.")
+        return
+
+    columns = st.columns(min(len(rows), 5))
+    for column, row in zip(columns, rows):
+        metrics = row.get("metrics") or {}
+        with column:
+            st.markdown(
+                (
+                    "<div class='top-strategy-card'>"
+                    f"<div class='top-strategy-rank'>TOP {row.get('top_rank') or '-'}</div>"
+                    f"<div class='top-strategy-name'>{row.get('strategy_name') or row.get('strategy_id')}</div>"
+                    f"<div class='top-strategy-meta'>{row.get('strategy_direction') or '-'} | "
+                    f"score {float(row.get('score') or 0.0):.2f}</div>"
+                    f"<div class='top-strategy-meta'>PnL {float(metrics.get('net_profit', 0.0)):.2f} | "
+                    f"PF {float(metrics.get('profit_factor', 0.0)):.2f}</div>"
+                    "</div>"
+                ),
+                unsafe_allow_html=True,
+            )
+            if st.button("Abrir", key=f"top-open-{row['backtest_run_id']}", use_container_width=True):
+                _select_strategy(
+                    state,
+                    rows,
+                    row["backtest_run_id"],
+                    row.get("strategy_version_id"),
+                    state.get("selected_campaign_id"),
+                )
+                st.rerun()
+
+
+def _render_strategy_navigation_strip(state: dict[str, Any], run: dict[str, Any]) -> None:
+    selected_ids = list(state.get("selected_strategy_run_ids") or [])
+    selected_run_id = str(run["id"])
+    if selected_run_id not in selected_ids:
+        selected_ids = [selected_run_id]
+        state["selected_strategy_run_ids"] = selected_ids
+        state["selected_strategy_position"] = 0
+
+    position = selected_ids.index(selected_run_id)
+    state["selected_strategy_position"] = position
+    previous_run_id = selected_ids[position - 1] if position > 0 else None
+    next_run_id = selected_ids[position + 1] if position < len(selected_ids) - 1 else None
+
+    st.markdown("<div class='nav-strip'>", unsafe_allow_html=True)
+    nav_cols = st.columns([1.3, 1.3, 2.2, 2.2])
+    if nav_cols[0].button("Estrategia anterior", disabled=previous_run_id is None, use_container_width=True):
+        state["selected_backtest_run_id"] = previous_run_id
+        state["selected_strategy_position"] = max(position - 1, 0)
+        st.rerun()
+    if nav_cols[1].button("Proxima estrategia", disabled=next_run_id is None, use_container_width=True):
+        state["selected_backtest_run_id"] = next_run_id
+        state["selected_strategy_position"] = min(position + 1, len(selected_ids) - 1)
+        st.rerun()
+    nav_cols[2].metric("Posicao no ranking", f"{position + 1}/{len(selected_ids)}")
+    nav_cols[3].metric("Campanha", str(run.get("campaign_id") or "-"))
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def _render_pagination_controls(
+    *,
+    state: dict[str, Any],
+    prefix: str,
+    total_items: int,
+    default_page_size: int,
+    label: str,
+) -> dict[str, Any]:
+    page_key = f"{prefix}_page"
+    page_size_key = f"{prefix}_page_size"
+    if page_key not in state:
+        state[page_key] = 1
+    if page_size_key not in state:
+        state[page_size_key] = default_page_size
+
+    controls = st.columns([1.1, 1.1, 1.2, 3.0])
+    if controls[0].button("Anterior", key=f"{prefix}_prev", disabled=state[page_key] <= 1, use_container_width=True):
+        state[page_key] = max(int(state[page_key]) - 1, 1)
+    if controls[1].button("Proxima", key=f"{prefix}_next", disabled=(int(state[page_key]) * int(state[page_size_key])) >= total_items, use_container_width=True):
+        state[page_key] = int(state[page_key]) + 1
+    controls[2].selectbox(
+        f"{label} por pagina",
+        options=[5, 8, 10, 20, 50],
+        index=[5, 8, 10, 20, 50].index(state[page_size_key]) if state[page_size_key] in [5, 8, 10, 20, 50] else 2,
+        key=page_size_key,
+    )
+    state[page_size_key] = int(state[page_size_key])
+    return {
+        "page": int(state[page_key]),
+        "page_size": int(state[page_size_key]),
+    }
+
+
+def _render_pagination_summary(page_data: dict[str, Any], *, item_label: str) -> None:
+    st.caption(
+        f"Exibindo {page_data['start_index'] + 1 if page_data['total_items'] else 0}"
+        f" a {page_data['end_index']} de {page_data['total_items']} {item_label}. "
+        f"Pagina {page_data['page']} de {page_data['total_pages']}."
+    )
+
+
+def _sync_pagination_state(state: dict[str, Any], prefix: str, page_data: dict[str, Any]) -> None:
+    state[f"{prefix}_page"] = int(page_data["page"])
+    state[f"{prefix}_page_size"] = int(page_data["page_size"])
+
+
+def _sync_strategy_navigation_state(state: dict[str, Any], filtered_rows: list[dict[str, Any]]) -> None:
+    strategy_run_ids = [str(item["backtest_run_id"]) for item in filtered_rows]
+    state["selected_strategy_run_ids"] = strategy_run_ids
+    selected_run_id = state.get("selected_backtest_run_id")
+    if selected_run_id in strategy_run_ids:
+        state["selected_strategy_position"] = strategy_run_ids.index(selected_run_id)
+    elif strategy_run_ids:
+        state["selected_strategy_position"] = 0
+
+
+def _select_strategy(
+    state: dict[str, Any],
+    filtered_rows: list[dict[str, Any]],
+    backtest_run_id: str,
+    strategy_version_id: str | None,
+    campaign_id: str | None,
+) -> None:
+    state["selected_campaign_id"] = campaign_id
+    state["selected_backtest_run_id"] = backtest_run_id
+    state["selected_strategy_version_id"] = strategy_version_id
+    state["selected_strategy_run_ids"] = [str(item["backtest_run_id"]) for item in filtered_rows]
+    if backtest_run_id in state["selected_strategy_run_ids"]:
+        state["selected_strategy_position"] = state["selected_strategy_run_ids"].index(backtest_run_id)
+    else:
+        state["selected_strategy_position"] = 0
+    state["ui_page"] = "Detalhe da Estrategia"
 
 
 def _build_strategy_window_rows(backend: UiBackendContext, run: dict[str, Any]) -> list[dict[str, Any]]:

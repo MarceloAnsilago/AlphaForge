@@ -2,7 +2,14 @@ from __future__ import annotations
 
 import unittest
 
-from ui.mining_helpers import build_equity_curve_frame, build_walk_forward_frame, filter_strategy_rows, summarize_strategy_rules
+from ui.mining_helpers import (
+    build_equity_curve_frame,
+    build_walk_forward_frame,
+    filter_campaign_rows,
+    filter_strategy_rows,
+    paginate_rows,
+    summarize_strategy_rules,
+)
 
 
 class MiningUiHelpersTests(unittest.TestCase):
@@ -16,6 +23,27 @@ class MiningUiHelpersTests(unittest.TestCase):
         )
 
         self.assertEqual(list(frame["equity"]), [10.0, 6.0, 9.0])
+        self.assertEqual(list(frame["drawdown"]), [0.0, -4.0, -1.0])
+
+    def test_filter_campaign_rows_applies_query_symbol_and_timeframe(self) -> None:
+        campaigns = [
+            {"id": "c1", "name": "EURUSD WF", "symbol": "EURUSD", "timeframe": "M5"},
+            {"id": "c2", "name": "GBPUSD Robust", "symbol": "GBPUSD", "timeframe": "M15"},
+            {"id": "c3", "name": "EURUSD Simple", "symbol": "EURUSD", "timeframe": "H1"},
+        ]
+        summaries = {"c1": {"approved_quantity": 2}, "c2": {"approved_quantity": 1}, "c3": {"approved_quantity": 0}}
+
+        filtered = filter_campaign_rows(
+            campaigns,
+            summaries,
+            query="eurusd",
+            symbol="EURUSD",
+            timeframe="M5",
+        )
+
+        self.assertEqual(len(filtered), 1)
+        self.assertEqual(filtered[0]["id"], "c1")
+        self.assertEqual(filtered[0]["summary"]["approved_quantity"], 2)
 
     def test_filter_strategy_rows_applies_all_filters(self) -> None:
         rows = [
@@ -34,6 +62,15 @@ class MiningUiHelpersTests(unittest.TestCase):
 
         self.assertEqual(len(filtered), 1)
         self.assertEqual(filtered[0]["strategy_name"], "Gamma Long")
+
+    def test_paginate_rows_returns_requested_slice(self) -> None:
+        rows = [{"id": f"item-{index}"} for index in range(1, 11)]
+
+        page = paginate_rows(rows, page=2, page_size=3)
+
+        self.assertEqual([item["id"] for item in page["items"]], ["item-4", "item-5", "item-6"])
+        self.assertEqual(page["total_pages"], 4)
+        self.assertEqual(page["start_index"], 3)
 
     def test_summarize_strategy_rules_returns_readable_text(self) -> None:
         summary = summarize_strategy_rules(

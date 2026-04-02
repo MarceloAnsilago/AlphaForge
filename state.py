@@ -12,6 +12,8 @@ def _build_default_state() -> dict[str, Any]:
         "selected_campaign_id": None,
         "selected_strategy_version_id": None,
         "selected_backtest_run_id": None,
+        "selected_strategy_run_ids": [],
+        "selected_strategy_position": 0,
         "mt5_connected": False,
         "mt5_status": "",
         "symbols_status": "",
