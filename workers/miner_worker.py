@@ -7,9 +7,11 @@ import pandas as pd
 
 from infra.db.supabase_client import InMemoryDatabaseClient, build_supabase_client_from_env
 from infra.repositories.backtest_repository import BacktestRepository
+from infra.repositories.mining_campaign_repository import MiningCampaignRepository
 from infra.repositories.strategy_repository import StrategyRepository
 from services.backtest_service import BacktestService
 from services.miner_service import MinerService
+from services.mining_campaign_service import MiningCampaignService
 from services.strategy_service import StrategyService
 from domain.miner.space import MinerEvaluationConfig
 
@@ -51,13 +53,19 @@ def main() -> None:
     db = _build_db_client(args.db)
     strategy_repository = StrategyRepository(db)
     backtest_repository = BacktestRepository(db)
+    mining_campaign_repository = MiningCampaignRepository(db)
     strategy_service = StrategyService(strategy_repository)
     backtest_service = BacktestService(backtest_repository)
+    mining_campaign_service = MiningCampaignService(
+        mining_campaign_repository=mining_campaign_repository,
+        backtest_repository=backtest_repository,
+    )
     miner_service = MinerService(
         strategy_service=strategy_service,
         backtest_service=backtest_service,
         strategy_repository=strategy_repository,
         backtest_repository=backtest_repository,
+        mining_campaign_service=mining_campaign_service,
     )
 
     result = miner_service.mine_batch(

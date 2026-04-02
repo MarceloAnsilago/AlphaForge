@@ -12,9 +12,11 @@ from domain.miner.space import MinerEvaluationConfig, MinerFilterConfig, default
 from domain.strategy.normalizer import build_strategy_draft, normalize_strategy
 from infra.db.supabase_client import InMemoryDatabaseClient
 from infra.repositories.backtest_repository import BacktestRepository
+from infra.repositories.mining_campaign_repository import MiningCampaignRepository
 from infra.repositories.strategy_repository import StrategyRepository
 from services.backtest_service import BacktestService
 from services.miner_service import MinerService
+from services.mining_campaign_service import MiningCampaignService
 from services.strategy_service import StrategyService
 
 
@@ -237,8 +239,13 @@ class MinerPipelineTests(unittest.TestCase):
         db = InMemoryDatabaseClient()
         strategy_repository = StrategyRepository(db)
         backtest_repository = BacktestRepository(db)
+        mining_campaign_repository = MiningCampaignRepository(db)
         strategy_service = StrategyService(strategy_repository)
         backtest_service = BacktestService(backtest_repository)
+        mining_campaign_service = MiningCampaignService(
+            mining_campaign_repository=mining_campaign_repository,
+            backtest_repository=backtest_repository,
+        )
         self.pipeline = MinerPipeline(
             strategy_service=strategy_service,
             backtest_service=backtest_service,
@@ -249,6 +256,7 @@ class MinerPipelineTests(unittest.TestCase):
         )
         self.db = db
         self.strategy_repository = strategy_repository
+        self.mining_campaign_service = mining_campaign_service
 
     def test_random_generator_is_reproducible_and_normalizable(self) -> None:
         search_space = default_search_space(symbol="EURUSD", timeframe="M5", max_rules_per_strategy=2)
@@ -453,6 +461,7 @@ class MinerPipelineTests(unittest.TestCase):
             backtest_service=self.pipeline.backtest_service,
             strategy_repository=self.pipeline.strategy_repository,
             backtest_repository=self.pipeline.backtest_repository,
+            mining_campaign_service=self.mining_campaign_service,
         )
         result = miner_service.mine_batch(
             candles=_candles(),

@@ -390,6 +390,21 @@ class MinerPipeline:
             passed_filters=final_score.passed_filters,
             rejection_reason=final_score.rejection_reason,
             status="accepted" if final_score.passed_filters else "filtered",
+            execution_parameters={
+                **dict(last_test_run.get("execution_parameters") or {}),
+                "window_result": {
+                    "score": last_test_run.get("score"),
+                    "passed_filters": last_test_run.get("passed_filters"),
+                    "rejection_reason": last_test_run.get("rejection_reason"),
+                    "status": last_test_run.get("status"),
+                },
+                "aggregate_result": {
+                    "score": final_score.score,
+                    "passed_filters": final_score.passed_filters,
+                    "rejection_reason": final_score.rejection_reason,
+                    "status": "accepted" if final_score.passed_filters else "filtered",
+                },
+            },
         ) or last_test_run
 
         return MinerPipelineResult(
@@ -433,15 +448,19 @@ class MinerPipeline:
         passed_filters: bool | None,
         rejection_reason: str | None,
         status: str,
+        execution_parameters: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
+        values: dict[str, Any] = {
+            "score": score,
+            "passed_filters": passed_filters,
+            "rejection_reason": rejection_reason,
+            "status": status,
+        }
+        if execution_parameters is not None:
+            values["execution_parameters"] = execution_parameters
         return self.backtest_repository.update_backtest_run(
             backtest_run_id,
-            {
-                "score": score,
-                "passed_filters": passed_filters,
-                "rejection_reason": rejection_reason,
-                "status": status,
-            },
+            values,
         )
 
     def _build_evaluation_windows(self, candles: pd.DataFrame) -> list[EvaluationWindow]:

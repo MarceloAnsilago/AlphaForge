@@ -9,6 +9,7 @@ import pandas as pd
 
 from core.backtest_engine import run_backtest
 from domain.miner.fingerprint import backtest_input_fingerprint, candle_frame_fingerprint, strategy_spec_fingerprint
+from domain.miner.scoring import compute_stability
 from domain.strategy.normalizer import normalize_strategy
 from domain.strategy.spec import StrategyDraft, StrategySpec
 from infra.db.supabase_client import utc_now_iso
@@ -136,6 +137,7 @@ class BacktestService:
                 "profit_factor": _finite_metric(raw_summary.get("profit_factor", 0.0)),
                 "expectancy": _finite_metric(raw_summary.get("expectancy", 0.0)),
                 "pnl_variance": _finite_metric(raw_summary.get("pnl_variance", 0.0)),
+                "stability": _finite_metric(compute_stability(backtest_result)),
                 "created_at": utc_now_iso(),
             }
         )

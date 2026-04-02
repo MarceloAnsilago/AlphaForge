@@ -5,6 +5,7 @@ from importlib import import_module
 __all__ = [
     "BacktestService",
     "MinerService",
+    "MiningCampaignService",
     "StrategyService",
     "connect_terminal",
     "get_service_error",
@@ -17,6 +18,7 @@ def __getattr__(name: str):
     mapping = {
         "BacktestService": ("services.backtest_service", "BacktestService"),
         "MinerService": ("services.miner_service", "MinerService"),
+        "MiningCampaignService": ("services.mining_campaign_service", "MiningCampaignService"),
         "StrategyService": ("services.strategy_service", "StrategyService"),
         "connect_terminal": ("services.mt5_service", "connect_terminal"),
         "get_service_error": ("services.mt5_service", "get_service_error"),
