@@ -1,4 +1,6 @@
 altair
+flask
+pywebview
 pytest
 streamlit
 pandas

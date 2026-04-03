@@ -1,0 +1,493 @@
+{% extends "base.html" %}
+
+{% macro option_list(options, current) -%}
+  {% for option in options %}
+    <option value="{{ option }}" {% if current|string == option|string %}selected{% endif %}>{{ option }}</option>
+  {% endfor %}
+{%- endmacro %}
+
+{% block content %}
+<form method="post">
+  <input type="hidden" name="active_tab" id="active-tab-input" value="{{ active_tab }}">
+
+  <div class="af-card p-3 p-lg-4 mb-4">
+    <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center">
+      <div>
+        <div class="af-section-title mb-1">Builder</div>
+        <div class="text-muted">Sidebar, navbar em abas, expanders e acoes equivalentes do Streamlit.</div>
+      </div>
+      <div class="d-flex flex-wrap gap-2">
+        <button class="btn btn-outline-primary" type="submit" name="action" value="save_strategy">Salvar Estrutura</button>
+        <button class="btn btn-outline-primary" type="submit" name="action" value="persist_strategy">Salvar no Backend</button>
+        <button class="btn btn-primary" type="submit" name="action" value="persist_backtest">Persistir Backtest</button>
+        <button class="btn btn-dark" type="submit" name="action" value="show_json">Exibir JSON</button>
+      </div>
+    </div>
+  </div>
+
+  <ul class="nav nav-pills flex-wrap gap-2 mb-4" id="builderTabs" role="tablist">
+    {% for tab_id, tab_label in builder_tabs %}
+      <li class="nav-item" role="presentation">
+        <button
+          class="nav-link af-tab-link {% if active_tab == tab_id %}active{% endif %}"
+          id="{{ tab_id }}-tab"
+          data-bs-toggle="pill"
+          data-bs-target="#{{ tab_id }}"
+          type="button"
+          role="tab"
+          data-tab-id="{{ tab_id }}"
+        >
+          {{ tab_label }}
+        </button>
+      </li>
+    {% endfor %}
+  </ul>
+
+  <div class="tab-content">
+    <section class="tab-pane fade {% if active_tab == 'connection' %}show active{% endif %}" id="connection" role="tabpanel">
+      <div class="accordion" id="accordion-connection">
+        <div class="accordion-item af-card">
+          <h2 class="accordion-header">
+            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-connection">
+              Conexao MT5
+            </button>
+          </h2>
+          <div id="collapse-connection" class="accordion-collapse collapse show">
+            <div class="accordion-body">
+              <div class="d-flex flex-wrap gap-2 mb-3">
+                <button class="btn btn-outline-primary" type="submit" name="action" value="connect_mt5">Conectar ao MT5</button>
+                <button class="btn btn-outline-secondary" type="submit" name="action" value="load_symbols">Carregar simbolos</button>
+              </div>
+              <div class="row g-3">
+                <div class="col-lg-4"><div class="af-metric"><div class="af-metric-label">Conexao</div><div class="af-metric-value">{{ "Ativa" if state.mt5_connected else "Inativa" }}</div></div></div>
+                <div class="col-lg-4"><div class="af-metric"><div class="af-metric-label">Simbolos</div><div class="af-metric-value">{{ state.symbols|length }}</div></div></div>
+                <div class="col-lg-4"><div class="af-metric"><div class="af-metric-label">Status</div><div class="small mt-2">{{ state.mt5_status or state.symbols_status or "Sem eventos recentes." }}</div></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-pane fade {% if active_tab == 'market' %}show active{% endif %}" id="market" role="tabpanel">
+      <div class="accordion" id="accordion-market">
+        <div class="accordion-item af-card">
+          <h2 class="accordion-header">
+            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-market">
+              Dados de mercado
+            </button>
+          </h2>
+          <div id="collapse-market" class="accordion-collapse collapse show">
+            <div class="accordion-body">
+              <div class="row g-3">
+                <div class="col-lg-3">
+                  <label class="form-label">Simbolo</label>
+                  <select class="form-select" name="selected_symbol">
+                    {% if ui_options.symbols %}
+                      {{ option_list(ui_options.symbols, ui_options.selected_symbol) }}
+                    {% else %}
+                      <option value="">Sem simbolos disponiveis</option>
+                    {% endif %}
+                  </select>
+                </div>
+                <div class="col-lg-3">
+                  <label class="form-label">Tempo grafico</label>
+                  <select class="form-select" name="selected_timeframe">
+                    {% for option in ui_options.primary_timeframe_options %}
+                      <option value="{{ option }}" {% if form_values.selected_timeframe == option %}selected{% endif %}>{{ timeframe_label(option) }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-lg-3">
+                  <label class="form-label">Periodo</label>
+                  <select class="form-select" name="period_mode">
+                    {% for option in ui_options.market_period_options %}
+                      <option value="{{ option }}" {% if form_values.period_mode == option %}selected{% endif %}>{{ period_labels[option] }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-lg-3 d-flex align-items-end">
+                  <button class="btn btn-primary w-100" type="submit" name="action" value="load_market_data">Carregar dados</button>
+                </div>
+                <div class="col-lg-3">
+                  <label class="form-label">Data inicial</label>
+                  <input class="form-control" type="date" name="custom_start_date" value="{{ form_values.custom_start_date }}">
+                </div>
+                <div class="col-lg-3">
+                  <label class="form-label">Data final</label>
+                  <input class="form-control" type="date" name="custom_end_date" value="{{ form_values.custom_end_date }}">
+                </div>
+              </div>
+
+              {% if market_data_rows %}
+                <div class="table-responsive mt-4 af-card">
+                  <table class="table table-hover af-table mb-0">
+                    <thead><tr>{% for column in market_data_columns %}<th>{{ column }}</th>{% endfor %}</tr></thead>
+                    <tbody>
+                      {% for row in market_data_rows[:100] %}
+                        <tr>{% for column in market_data_columns %}<td>{{ row[column] }}</td>{% endfor %}</tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-pane fade {% if active_tab == 'basics' %}show active{% endif %}" id="basics" role="tabpanel">
+      <div class="accordion">
+        <div class="accordion-item af-card">
+          <h2 class="accordion-header">
+            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-basics">
+              Informacoes basicas da estrategia
+            </button>
+          </h2>
+          <div id="collapse-basics" class="accordion-collapse collapse show">
+            <div class="accordion-body">
+              <div class="row g-3">
+                <div class="col-lg-4"><label class="form-label">Nome da estrategia</label><input class="form-control" name="strategy_name" value="{{ form_values.strategy_name }}"></div>
+                <div class="col-lg-4"><label class="form-label">Mercado desejado</label><select class="form-select" name="desired_market">{{ option_list(ui_options.target_market_options, form_values.desired_market) }}</select></div>
+                <div class="col-lg-4"><label class="form-label">Tipo operacional</label><select class="form-select" name="operational_type">{{ option_list(ui_options.operational_type_options, form_values.operational_type) }}</select></div>
+                <div class="col-lg-4"><label class="form-label">Modo de processamento</label><select class="form-select" name="processing_mode">{{ option_list(ui_options.processing_mode_options, form_values.processing_mode) }}</select></div>
+                <div class="col-lg-4"><label class="form-label">Operar compra?</label><select class="form-select" name="operate_buy">{{ option_list(ui_options.yes_no_options, form_values.operate_buy) }}</select></div>
+                <div class="col-lg-4"><label class="form-label">Operar venda?</label><select class="form-select" name="operate_sell">{{ option_list(ui_options.yes_no_options, form_values.operate_sell) }}</select></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-pane fade {% if active_tab == 'schedule' %}show active{% endif %}" id="schedule" role="tabpanel">
+      <div class="accordion">
+        <div class="accordion-item af-card">
+          <h2 class="accordion-header">
+            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-schedule">
+              Horario
+            </button>
+          </h2>
+          <div id="collapse-schedule" class="accordion-collapse collapse show">
+            <div class="accordion-body">
+              <div class="row g-3">
+                <div class="col-lg-3"><label class="form-label">Zerar por horario?</label><select class="form-select" name="close_by_schedule">{{ option_list(ui_options.yes_no_options, form_values.close_by_schedule) }}</select></div>
+                <div class="col-lg-3"><label class="form-label">Hora zeragem</label><input class="form-control" name="close_operations_hour" value="{{ form_values.close_operations_hour }}"></div>
+                <div class="col-lg-3"><label class="form-label">Minuto zeragem</label><input class="form-control" name="close_operations_minute" value="{{ form_values.close_operations_minute }}"></div>
+              </div>
+              <div class="row g-3 mt-1">
+                <div class="col-lg-3"><label class="form-label">Inicio hora</label><input class="form-control" name="operation_start_hour" value="{{ form_values.operation_start_hour }}"></div>
+                <div class="col-lg-3"><label class="form-label">Inicio minuto</label><input class="form-control" name="operation_start_minute" value="{{ form_values.operation_start_minute }}"></div>
+                <div class="col-lg-3"><label class="form-label">Fim hora</label><input class="form-control" name="operation_end_hour" value="{{ form_values.operation_end_hour }}"></div>
+                <div class="col-lg-3"><label class="form-label">Fim minuto</label><input class="form-control" name="operation_end_minute" value="{{ form_values.operation_end_minute }}"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-pane fade {% if active_tab == 'setup' %}show active{% endif %}" id="setup" role="tabpanel">
+      <div class="accordion">
+        <div class="accordion-item af-card">
+          <h2 class="accordion-header">
+            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-setup">
+              Configuracao inicial
+            </button>
+          </h2>
+          <div id="collapse-setup" class="accordion-collapse collapse show">
+            <div class="accordion-body">
+              <div class="row g-3">
+                <div class="col-lg-4"><label class="form-label">Tempo grafico principal</label><select class="form-select" name="primary_timeframe">{% for option in ui_options.primary_timeframe_options %}<option value="{{ option }}" {% if form_values.primary_timeframe == option %}selected{% endif %}>{{ timeframe_label(option) }}</option>{% endfor %}</select></div>
+                <div class="col-lg-4"><label class="form-label">Volume inicial</label><input class="form-control" name="initial_volume" value="{{ form_values.initial_volume }}"></div>
+                <div class="col-lg-4"><label class="form-label">Spread maximo</label><input class="form-control" name="max_spread" value="{{ form_values.max_spread }}"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {% for prefix, tab_id, title in [
+      ('stop_loss', 'stop_loss', 'Stop loss'),
+      ('soft_stop', 'soft_stop', 'Stop movel'),
+      ('take_profit', 'take_profit', 'Take profit'),
+      ('trailing_stop', 'trailing_stop', 'Trailing stop')
+    ] %}
+      <section class="tab-pane fade {% if active_tab == tab_id %}show active{% endif %}" id="{{ tab_id }}" role="tabpanel">
+        <div class="accordion">
+          <div class="accordion-item af-card">
+            <h2 class="accordion-header">
+              <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ tab_id }}">{{ title }}</button>
+            </h2>
+            <div id="collapse-{{ tab_id }}" class="accordion-collapse collapse show">
+              <div class="accordion-body">
+                <div class="row g-3">
+                  <div class="col-lg-3"><label class="form-label">Ativar?</label><select class="form-select" name="{{ prefix }}_enabled">{{ option_list(ui_options.yes_no_options, form_values[prefix ~ '_enabled']) }}</select></div>
+                  {% if prefix == 'take_profit' %}
+                    <div class="col-lg-3"><label class="form-label">Tipo</label><select class="form-select" name="take_profit_type">{{ option_list(ui_options.stop_types, form_values.take_profit_type) }}</select></div>
+                    <div class="col-lg-3"><label class="form-label">Valor</label><input class="form-control" name="take_profit_value" value="{{ form_values.take_profit_value }}"></div>
+                  {% else %}
+                    <div class="col-lg-3"><label class="form-label">Calculo/Tipo</label><select class="form-select" name="{{ prefix }}_calculation_type">{{ option_list(ui_options.stop_types, form_values[prefix ~ '_calculation_type']) }}</select></div>
+                    <div class="col-lg-3"><label class="form-label">Modo</label>
+                      {% if prefix == 'stop_loss' %}
+                        <select class="form-select" name="stop_loss_mode"><option value="Calculo" {% if form_values.stop_loss_mode == 'Calculo' %}selected{% endif %}>Calculo</option><option value="Fixo" {% if form_values.stop_loss_mode == 'Fixo' %}selected{% endif %}>Fixo</option></select>
+                      {% else %}
+                        <select class="form-select" name="{{ prefix }}_type">{{ option_list(ui_options.stop_movel_mode_options, form_values[prefix ~ '_type']) }}</select>
+                      {% endif %}
+                    </div>
+                    {% if prefix == 'stop_loss' %}
+                      <div class="col-lg-3"><label class="form-label">Tipo stop</label><select class="form-select" name="stop_loss_type">{{ option_list(ui_options.stop_types, form_values.stop_loss_type) }}</select></div>
+                      <div class="col-lg-3"><label class="form-label">Tipo calculo</label><select class="form-select" name="stop_loss_calculation_type"><option value="Referencia de preco" {% if form_values.stop_loss_calculation_type == 'Referencia de preco' %}selected{% endif %}>Referencia de preco</option><option value="Calculo" {% if form_values.stop_loss_calculation_type == 'Calculo' %}selected{% endif %}>Calculo</option></select></div>
+                      <div class="col-lg-3"><label class="form-label">Metodo</label><select class="form-select" name="stop_loss_calculation_method">{{ option_list(ui_options.stop_calculation_options, form_values.stop_loss_calculation_method) }}</select></div>
+                      <div class="col-lg-3"><label class="form-label">Referencia</label><select class="form-select" name="stop_loss_reference">{{ option_list(ui_options.stop_price_reference_options, form_values.stop_loss_reference) }}</select></div>
+                      <div class="col-lg-3"><label class="form-label">Candle</label><select class="form-select" name="stop_loss_candle">{{ option_list(ui_options.stop_candle_reference_options, form_values.stop_loss_candle) }}</select></div>
+                      <div class="col-lg-3"><label class="form-label">Qtd candle</label><input class="form-control" name="stop_loss_candle_period" value="{{ form_values.stop_loss_candle_period }}"></div>
+                      <div class="col-lg-3"><label class="form-label">Base referencia</label><select class="form-select" name="stop_loss_candle_reference">{{ option_list(ui_options.stop_media_reference_options, form_values.stop_loss_candle_reference) }}</select></div>
+                      <div class="col-lg-3"><label class="form-label">Multiplicador</label><input class="form-control" name="stop_loss_multiplier" value="{{ form_values.stop_loss_multiplier }}"></div>
+                      <div class="col-lg-3"><label class="form-label">Valor</label><input class="form-control" name="stop_loss_value" value="{{ form_values.stop_loss_value }}"></div>
+                    {% else %}
+                      <div class="col-lg-3"><label class="form-label">Acionar a favor</label><input class="form-control" name="{{ prefix }}_acionar_a_favor" value="{{ form_values[prefix ~ '_acionar_a_favor'] }}"></div>
+                      <div class="col-lg-3"><label class="form-label">Passe</label><input class="form-control" name="{{ prefix }}_passe" value="{{ form_values[prefix ~ '_passe'] }}"></div>
+                      <div class="col-lg-3"><label class="form-label">Base candles</label><select class="form-select" name="{{ prefix }}_candles_basis"><option value="distance" {% if form_values[prefix ~ '_candles_basis'] == 'distance' %}selected{% endif %}>Distancia</option><option value="candle_count" {% if form_values[prefix ~ '_candles_basis'] == 'candle_count' %}selected{% endif %}>Qtd candles</option></select></div>
+                      <div class="col-lg-3"><label class="form-label">Distancia</label><input class="form-control" name="{{ prefix }}_distance" value="{{ form_values[prefix ~ '_distance'] }}"></div>
+                      <div class="col-lg-3"><label class="form-label">Numero de candles</label><input class="form-control" name="{{ prefix }}_candle_count" value="{{ form_values[prefix ~ '_candle_count'] }}"></div>
+                      <div class="col-lg-3"><label class="form-label">Posicionar em</label><select class="form-select" name="{{ prefix }}_reference">{{ option_list(ui_options.stop_price_reference_options, form_values[prefix ~ '_reference']) }}</select></div>
+                      <div class="col-lg-3"><label class="form-label">Indicador</label><select class="form-select" name="{{ prefix }}_indicator"><option value="SMA" {% if form_values[prefix ~ '_indicator'] == 'SMA' %}selected{% endif %}>SMA</option><option value="EMA" {% if form_values[prefix ~ '_indicator'] == 'EMA' %}selected{% endif %}>EMA</option><option value="RSI" {% if form_values[prefix ~ '_indicator'] == 'RSI' %}selected{% endif %}>RSI</option><option value="MACD" {% if form_values[prefix ~ '_indicator'] == 'MACD' %}selected{% endif %}>MACD</option></select></div>
+                    {% endif %}
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    {% endfor %}
+
+    <section class="tab-pane fade {% if active_tab == 'partial_exits' %}show active{% endif %}" id="partial_exits" role="tabpanel">
+      <div class="accordion">
+        <div class="accordion-item af-card">
+          <h2 class="accordion-header"><button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-partial">Saidas parciais</button></h2>
+          <div id="collapse-partial" class="accordion-collapse collapse show">
+            <div class="accordion-body">
+              <div class="row g-3">
+                <div class="col-lg-4"><label class="form-label">Ativar?</label><select class="form-select" name="partial_exits_enabled">{{ option_list(ui_options.yes_no_options, form_values.partial_exits_enabled) }}</select></div>
+                <div class="col-lg-4"><label class="form-label">Calculo</label><select class="form-select" name="partial_exits_calculation_type">{{ option_list(ui_options.stop_types, form_values.partial_exits_calculation_type) }}</select></div>
+                <div class="col-lg-4"><label class="form-label">Quantidade</label><input class="form-control" name="partial_exits_count" value="{{ form_values.partial_exits_count }}"></div>
+                {% for index in range(3) %}
+                  <div class="col-lg-6"><label class="form-label">Saida parcial {{ index + 1 }} / alvo</label><input class="form-control" name="partial_exit_target_{{ index }}" value="{{ form_values['partial_exit_target_' ~ index] }}"></div>
+                  <div class="col-lg-6"><label class="form-label">Saida parcial {{ index + 1 }} / percentual</label><input class="form-control" name="partial_exit_percent_{{ index }}" value="{{ form_values['partial_exit_percent_' ~ index] }}"></div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-pane fade {% if active_tab == 'signals' %}show active{% endif %}" id="signals" role="tabpanel">
+      <div class="accordion" id="accordion-signals">
+        <div class="accordion-item af-card">
+          <h2 class="accordion-header"><button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-filter">Filtro de vela</button></h2>
+          <div id="collapse-filter" class="accordion-collapse collapse show">
+            <div class="accordion-body">
+              <div class="row g-3">
+                <div class="col-lg-3"><label class="form-label">Medir em</label><select class="form-select" name="candle_filter_measure_type">{{ option_list(ui_options.distance_calculation_options, form_values.candle_filter_measure_type) }}</select></div>
+                <div class="col-lg-3"><label class="form-label">Timeframe</label><select class="form-select" name="candle_filter_timeframe">{% for option in ui_options.primary_timeframe_options %}<option value="{{ option }}" {% if form_values.candle_filter_timeframe == option %}selected{% endif %}>{{ timeframe_label(option) }}</option>{% endfor %}</select></div>
+                <div class="col-lg-3"><label class="form-label">Min size</label><input class="form-control" name="candle_filter_min_size" value="{{ form_values.candle_filter_min_size }}"></div>
+                <div class="col-lg-3"><label class="form-label">Max size</label><input class="form-control" name="candle_filter_max_size" value="{{ form_values.candle_filter_max_size }}"></div>
+                <div class="col-lg-3"><label class="form-label">Min body</label><input class="form-control" name="candle_filter_min_body" value="{{ form_values.candle_filter_min_body }}"></div>
+                <div class="col-lg-3"><label class="form-label">Max body</label><input class="form-control" name="candle_filter_max_body" value="{{ form_values.candle_filter_max_body }}"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item af-card">
+          <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-orders">Tipo de ordens</button></h2>
+          <div id="collapse-orders" class="accordion-collapse collapse">
+            <div class="accordion-body">
+              <div class="row g-3 mb-3">
+                <div class="col-lg-4"><label class="form-label">Calculo das distancias</label><select class="form-select" name="distance_calculation_type">{{ option_list(ui_options.distance_calculation_options, form_values.distance_calculation_type) }}</select></div>
+              </div>
+              <div class="row g-3">
+                {% for prefix, label in [('entry', 'Entrada'), ('exit', 'Saida')] %}
+                  <div class="col-lg-6">
+                    <div class="af-card p-3 h-100">
+                      <div class="af-section-title">{{ label }}</div>
+                      <div class="row g-3">
+                        <div class="col-12"><label class="form-label">Tipo de ordem</label><select class="form-select" name="{{ prefix }}_order_type">{{ option_list(ui_options.order_execution_options, form_values[prefix ~ '_order_type']) }}</select></div>
+                        <div class="col-md-6"><label class="form-label">Posicionar</label><select class="form-select" name="{{ prefix }}_pending_positioning">{{ option_list(ui_options.pending_position_options, form_values[prefix ~ '_pending_positioning']) }}</select></div>
+                        <div class="col-md-6"><label class="form-label">Media candles</label><input class="form-control" name="{{ prefix }}_pending_average_candles" value="{{ form_values[prefix ~ '_pending_average_candles'] }}"></div>
+                        <div class="col-md-6"><label class="form-label">Referencia de preco</label><select class="form-select" name="{{ prefix }}_pending_price_reference">{{ option_list(ui_options.pending_price_reference_options, form_values[prefix ~ '_pending_price_reference']) }}</select></div>
+                        <div class="col-md-6"><label class="form-label">Candle</label><select class="form-select" name="{{ prefix }}_pending_candle_reference">{{ option_list(ui_options.pending_candle_reference_options, form_values[prefix ~ '_pending_candle_reference']) }}</select></div>
+                        <div class="col-md-6"><label class="form-label">Distancia</label><input class="form-control" name="{{ prefix }}_pending_order_distance" value="{{ form_values[prefix ~ '_pending_order_distance'] }}"></div>
+                        <div class="col-md-6"><label class="form-label">Expiracao</label><select class="form-select" name="{{ prefix }}_pending_expiration">{% for option in ui_options.pending_expiration_options %}<option value="{{ option }}" {% if form_values[prefix ~ '_pending_expiration']|string == option|string %}selected{% endif %}>{{ option }}</option>{% endfor %}</select></div>
+                      </div>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item af-card">
+          <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-ready-signals">Sinais prontos</button></h2>
+          <div id="collapse-ready-signals" class="accordion-collapse collapse">
+            <div class="accordion-body">
+              <div class="row g-3 mb-4">
+                {% for slot in range(1, 5) %}
+                  <div class="col-lg-6">
+                    <div class="af-card p-3 h-100">
+                      <div class="af-section-title">Indicador {{ slot }}</div>
+                      <div class="row g-3">
+                        <div class="col-md-6"><label class="form-label">Indicador</label><select class="form-select" name="signal_indicator_{{ slot }}">{{ option_list(ui_options.signal_indicator_options, form_values['signal_indicator_' ~ slot]) }}</select></div>
+                        <div class="col-md-6"><label class="form-label">Saida</label><select class="form-select" name="signal_indicator_output_{{ slot }}">{{ option_list(ui_options.signal_indicator_output_options[slot], form_values['signal_indicator_output_' ~ slot]) }}</select></div>
+                        <div class="col-md-6"><label class="form-label">Periodo</label><input class="form-control" name="signal_indicator_period_{{ slot }}" value="{{ form_values['signal_indicator_period_' ~ slot] }}"></div>
+                        <div class="col-md-6"><label class="form-label">Modo de preco</label><input class="form-control" name="signal_indicator_price_mode_{{ slot }}" value="{{ form_values['signal_indicator_price_mode_' ~ slot] }}"></div>
+                      </div>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+
+              <div class="af-section-title">Motor de regras</div>
+              <div class="table-responsive af-card">
+                <table class="table table-hover af-table mb-0">
+                  <thead><tr><th>Comando</th><th>Fonte A</th><th>Candle A</th><th>Operador</th><th>Fonte B</th><th>Candle B</th></tr></thead>
+                  <tbody>
+                    {% for index in range(5) %}
+                      <tr>
+                        <td><select class="form-select" name="signal_rule_{{ index }}_logical_command">{{ option_list(ui_options.signal_logical_command_options, form_values['signal_rule_' ~ index ~ '_logical_command']) }}</select></td>
+                        <td><select class="form-select" name="signal_rule_{{ index }}_source_a">{% for option in ui_options.signal_rule_source_options %}<option value="{{ option.value }}" {% if form_values['signal_rule_' ~ index ~ '_source_a'] == option.value %}selected{% endif %}>{{ option.label }}</option>{% endfor %}</select></td>
+                        <td><select class="form-select" name="signal_rule_{{ index }}_candle_a">{% for value, label in ui_options.signal_rule_candle_options %}<option value="{{ value }}" {% if form_values['signal_rule_' ~ index ~ '_candle_a'] == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td>
+                        <td><select class="form-select" name="signal_rule_{{ index }}_operator">{% for value, label in ui_options.signal_rule_operator_options %}<option value="{{ value }}" {% if form_values['signal_rule_' ~ index ~ '_operator'] == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td>
+                        <td><select class="form-select" name="signal_rule_{{ index }}_source_b">{% for option in ui_options.signal_rule_source_options %}<option value="{{ option.value }}" {% if form_values['signal_rule_' ~ index ~ '_source_b'] == option.value %}selected{% endif %}>{{ option.label }}</option>{% endfor %}</select></td>
+                        <td><select class="form-select" name="signal_rule_{{ index }}_candle_b">{% for value, label in ui_options.signal_rule_candle_options %}<option value="{{ value }}" {% if form_values['signal_rule_' ~ index ~ '_candle_b'] == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="row g-3 mt-1">
+                <div class="col-lg-4"><label class="form-label">Bandas ativadas?</label><select class="form-select" name="band_channels_enabled">{{ option_list(ui_options.yes_no_options, form_values.band_channels_enabled) }}</select></div>
+                <div class="col-lg-4"><label class="form-label">Sinal de bandas</label><select class="form-select" name="band_channels_signal">{{ option_list(ui_options.band_channel_signal_options, form_values.band_channels_signal) }}</select></div>
+                <div class="col-lg-4"><label class="form-label">Indicador de bandas</label><select class="form-select" name="band_channels_indicator">{{ option_list(ui_options.band_channel_indicator_options, form_values.band_channels_indicator) }}</select></div>
+                <div class="col-lg-3"><label class="form-label">Periodo</label><input class="form-control" name="band_channels_period" value="{{ form_values.band_channels_period }}"></div>
+                <div class="col-lg-3"><label class="form-label">Desvio</label><input class="form-control" name="band_channels_deviation" value="{{ form_values.band_channels_deviation }}"></div>
+                <div class="col-lg-3"><label class="form-label">Deslocamento</label><input class="form-control" name="band_channels_displacement" value="{{ form_values.band_channels_displacement }}"></div>
+                <div class="col-lg-3"><label class="form-label">Tipo de media</label><input class="form-control" name="band_channels_ma_type" value="{{ form_values.band_channels_ma_type }}"></div>
+
+                <div class="col-lg-4"><label class="form-label">Crossover ativado?</label><select class="form-select" name="crossover_enabled">{{ option_list(ui_options.yes_no_options, form_values.crossover_enabled) }}</select></div>
+                <div class="col-lg-4"><label class="form-label">Fonte rapida</label><select class="form-select" name="crossover_fast_source">{{ option_list(ui_options.crossover_source_options, form_values.crossover_fast_source) }}</select></div>
+                <div class="col-lg-4"><label class="form-label">Periodo rapido</label><input class="form-control" name="crossover_fast_period" value="{{ form_values.crossover_fast_period }}"></div>
+                <div class="col-lg-4"><label class="form-label">Fonte lenta</label><select class="form-select" name="crossover_slow_source">{{ option_list(ui_options.crossover_source_options, form_values.crossover_slow_source) }}</select></div>
+                <div class="col-lg-4"><label class="form-label">Periodo lento</label><input class="form-control" name="crossover_slow_period" value="{{ form_values.crossover_slow_period }}"></div>
+                <div class="col-lg-4"><label class="form-label">Sinal</label><select class="form-select" name="crossover_signal"><option value="Cruzamento para compra" {% if form_values.crossover_signal == 'Cruzamento para compra' %}selected{% endif %}>Cruzamento para compra</option><option value="Cruzamento para venda" {% if form_values.crossover_signal == 'Cruzamento para venda' %}selected{% endif %}>Cruzamento para venda</option><option value="Ambos" {% if form_values.crossover_signal == 'Ambos' %}selected{% endif %}>Ambos</option></select></div>
+
+                <div class="col-lg-4"><label class="form-label">Sobrecompra/sobrevenda</label><select class="form-select" name="overbought_oversold_signal">{{ option_list(ui_options.overbought_signal_options, form_values.overbought_oversold_signal) }}</select></div>
+                <div class="col-lg-4"><label class="form-label">Indicador</label><select class="form-select" name="overbought_oversold_indicator">{{ option_list(ui_options.overbought_indicator_options, form_values.overbought_oversold_indicator) }}</select></div>
+                <div class="col-lg-4"><label class="form-label">Saida</label><input class="form-control" name="overbought_oversold_output" value="{{ form_values.overbought_oversold_output }}"></div>
+                <div class="col-lg-4"><label class="form-label">Periodo</label><input class="form-control" name="overbought_oversold_period" value="{{ form_values.overbought_oversold_period }}"></div>
+                <div class="col-lg-4"><label class="form-label">Nivel sobrecompra</label><input class="form-control" name="overbought_level" value="{{ form_values.overbought_level }}"></div>
+                <div class="col-lg-4"><label class="form-label">Nivel sobrevenda</label><input class="form-control" name="oversold_level" value="{{ form_values.oversold_level }}"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-pane fade {% if active_tab == 'final_adjustments' %}show active{% endif %}" id="final_adjustments" role="tabpanel">
+      <div class="accordion">
+        <div class="accordion-item af-card">
+          <h2 class="accordion-header"><button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-final">Ajustes finais</button></h2>
+          <div id="collapse-final" class="accordion-collapse collapse show">
+            <div class="accordion-body">
+              <div class="row g-3">
+                {% for field_key, label, _default in ui_options.final_adjustment_fields %}
+                  <div class="col-lg-8"><label class="form-label">{{ label }}</label></div>
+                  <div class="col-lg-4"><select class="form-select" name="final_adjustment_{{ field_key }}">{{ option_list(ui_options.yes_no_options, form_values['final_adjustment_' ~ field_key]) }}</select></div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</form>
+
+{% if payload_json %}
+  <div class="af-card p-4 mt-4">
+    <div class="af-section-title">JSON da estrategia</div>
+    <pre class="af-code">{{ payload_json }}</pre>
+  </div>
+{% endif %}
+
+{% if backtest_view %}
+  <div class="af-card p-4 mt-4">
+    <div class="af-section-title">Backtest simples</div>
+    <div class="row g-3 mb-4">
+      <div class="col-lg-2"><div class="af-metric"><div class="af-metric-label">Trades</div><div class="af-metric-value">{{ backtest_view.summary.total_trades or 0 }}</div></div></div>
+      <div class="col-lg-2"><div class="af-metric"><div class="af-metric-label">Win rate</div><div class="af-metric-value">{{ "%.1f"|format(backtest_view.summary.win_rate or 0) }}%</div></div></div>
+      <div class="col-lg-2"><div class="af-metric"><div class="af-metric-label">Net profit</div><div class="af-metric-value">{{ "%.2f"|format(backtest_view.summary.net_profit or 0) }}</div></div></div>
+      <div class="col-lg-2"><div class="af-metric"><div class="af-metric-label">Gross profit</div><div class="af-metric-value">{{ "%.2f"|format(backtest_view.summary.gross_profit or 0) }}</div></div></div>
+      <div class="col-lg-2"><div class="af-metric"><div class="af-metric-label">Gross loss</div><div class="af-metric-value">{{ "%.2f"|format(backtest_view.summary.gross_loss or 0) }}</div></div></div>
+      <div class="col-lg-2"><div class="af-metric"><div class="af-metric-label">Drawdown</div><div class="af-metric-value">{{ "%.2f"|format(backtest_view.summary.max_drawdown or 0) }}</div></div></div>
+    </div>
+
+    {% if backtest_view.ambiguous_entries %}
+      <div class="alert alert-warning">Sinais ambiguos ignorados: {{ backtest_view.ambiguous_entries }} candle(s).</div>
+    {% endif %}
+
+    {% if backtest_view.performance_chart %}
+      <div class="row g-3">
+        <div class="col-lg-6"><div class="af-card af-chart-card p-3"><canvas id="equityChart"></canvas></div></div>
+        <div class="col-lg-6"><div class="af-card af-chart-card p-3"><canvas id="drawdownChart"></canvas></div></div>
+      </div>
+    {% endif %}
+
+    {% if backtest_view.trades_rows %}
+      <div class="table-responsive mt-4 af-card">
+        <table class="table table-hover af-table mb-0">
+          <thead><tr>{% for column in backtest_view.trades_columns %}<th>{{ column }}</th>{% endfor %}</tr></thead>
+          <tbody>{% for row in backtest_view.trades_rows %}<tr>{% for column in backtest_view.trades_columns %}<td>{{ row[column] }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+  {% if backtest_view and backtest_view.performance_chart %}
+    <script>
+      const performanceChart = {{ backtest_view.performance_chart|tojson }};
+      new Chart(document.getElementById("equityChart"), {
+        type: "line",
+        data: {
+          labels: performanceChart.labels,
+          datasets: [{ label: "Equity", data: performanceChart.equity, borderColor: "#184e77", backgroundColor: "rgba(24,78,119,0.18)", tension: 0.25 }]
+        }
+      });
+      new Chart(document.getElementById("drawdownChart"), {
+        type: "bar",
+        data: {
+          labels: performanceChart.labels,
+          datasets: [{ label: "Drawdown", data: performanceChart.drawdown, backgroundColor: "#c97d4a" }]
+        }
+      });
+    </script>
+  {% endif %}
+  <script>
+    document.querySelectorAll("[data-tab-id]").forEach((element) => {
+      element.addEventListener("shown.bs.tab", (event) => {
+        document.getElementById("active-tab-input").value = event.target.dataset.tabId;
+      });
+    });
+  </script>
+{% endblock %}

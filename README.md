@@ -43,6 +43,18 @@ Use `.env.example` como referencia. Se preferir Streamlit secrets, defina `ALPHA
 streamlit run app.py
 ```
 
+Interface Flask paralela:
+
+```powershell
+python flask_app.py
+```
+
+Desktop local com pywebview:
+
+```powershell
+python desktop_app.py
+```
+
 Fluxo recomendado:
 
 1. Conecte ao MT5 e carregue candles no builder.

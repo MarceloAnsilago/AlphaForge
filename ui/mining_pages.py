@@ -754,9 +754,12 @@ def _render_pagination_controls(
 ) -> dict[str, Any]:
     page_key = f"{prefix}_page"
     page_size_key = f"{prefix}_page_size"
+    page_size_options = [5, 8, 10, 20, 50]
     if page_key not in state:
         state[page_key] = 1
     if page_size_key not in state:
+        state[page_size_key] = default_page_size
+    elif int(state[page_size_key]) not in page_size_options:
         state[page_size_key] = default_page_size
 
     controls = st.columns([1.1, 1.1, 1.2, 3.0])
@@ -766,11 +769,10 @@ def _render_pagination_controls(
         state[page_key] = int(state[page_key]) + 1
     controls[2].selectbox(
         f"{label} por pagina",
-        options=[5, 8, 10, 20, 50],
-        index=[5, 8, 10, 20, 50].index(state[page_size_key]) if state[page_size_key] in [5, 8, 10, 20, 50] else 2,
+        options=page_size_options,
+        index=page_size_options.index(int(state[page_size_key])),
         key=page_size_key,
     )
-    state[page_size_key] = int(state[page_size_key])
     return {
         "page": int(state[page_key]),
         "page_size": int(state[page_size_key]),
@@ -787,7 +789,6 @@ def _render_pagination_summary(page_data: dict[str, Any], *, item_label: str) ->
 
 def _sync_pagination_state(state: dict[str, Any], prefix: str, page_data: dict[str, Any]) -> None:
     state[f"{prefix}_page"] = int(page_data["page"])
-    state[f"{prefix}_page_size"] = int(page_data["page_size"])
 
 
 def _sync_strategy_navigation_state(state: dict[str, Any], filtered_rows: list[dict[str, Any]]) -> None:

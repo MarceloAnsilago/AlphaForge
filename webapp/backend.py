@@ -1,15 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 import os
 
-import streamlit as st
-from streamlit.errors import StreamlitSecretNotFoundError
-
-from infra.db.supabase_client import (
-    DatabaseClient,
-    build_database_client,
-)
+from infra.db.supabase_client import DatabaseClient, build_database_client
 from infra.repositories.backtest_repository import BacktestRepository
 from infra.repositories.mining_campaign_repository import MiningCampaignRepository
 from infra.repositories.strategy_repository import StrategyRepository
@@ -20,7 +15,7 @@ from services.strategy_service import StrategyService
 
 
 @dataclass(slots=True)
-class UiBackendContext:
+class WebBackendContext:
     db: DatabaseClient
     backend_mode: str
     backend_status: str
@@ -33,20 +28,10 @@ class UiBackendContext:
     mining_campaign_service: MiningCampaignService
 
 
-@st.cache_resource(show_spinner=False)
-def get_ui_backend_context() -> UiBackendContext:
-    try:
-        secret_backend = st.secrets.get("ALPHAFORGE_DB_BACKEND", None)
-    except StreamlitSecretNotFoundError:
-        secret_backend = None
-    configured_backend = (
-        os.getenv("ALPHAFORGE_DB_BACKEND", "").strip()
-        or secret_backend
-        or "auto"
-    )
-    db, backend_mode, backend_status = build_database_client(
-        configured_backend
-    )
+@lru_cache(maxsize=1)
+def get_web_backend_context() -> WebBackendContext:
+    configured_backend = os.getenv("ALPHAFORGE_DB_BACKEND", "").strip() or "auto"
+    db, backend_mode, backend_status = build_database_client(configured_backend)
 
     strategy_repository = StrategyRepository(db)
     backtest_repository = BacktestRepository(db)
@@ -64,7 +49,7 @@ def get_ui_backend_context() -> UiBackendContext:
         backtest_repository=backtest_repository,
         mining_campaign_service=mining_campaign_service,
     )
-    return UiBackendContext(
+    return WebBackendContext(
         db=db,
         backend_mode=backend_mode,
         backend_status=backend_status,
