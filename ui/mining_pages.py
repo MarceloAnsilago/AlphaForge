@@ -6,6 +6,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
+from domain.miner.space import MinerEvaluationConfig, MinerFilterConfig
 from ui.backend import UiBackendContext
 from ui.mining_helpers import (
     build_equity_curve_frame,
@@ -112,12 +113,15 @@ def render_sidebar_navigation(state: dict[str, Any]) -> str:
 def render_backend_status(backend: UiBackendContext) -> None:
     if backend.backend_mode == "supabase":
         st.sidebar.success(backend.backend_status)
+    elif backend.backend_mode == "file":
+        st.sidebar.info(backend.backend_status)
     else:
         st.sidebar.warning(backend.backend_status)
 
 
 def render_campaigns_page(backend: UiBackendContext, state: dict[str, Any]) -> None:
     st.title("Campanhas")
+    _render_campaign_creation_form(backend, state)
     campaigns = backend.mining_campaign_service.list_campaigns()
     if not campaigns:
         st.info("Nenhuma campanha encontrada no backend configurado.")
@@ -512,6 +516,119 @@ def render_equity_curve_section(equity_curve: pd.DataFrame) -> None:
     st.altair_chart(drawdown_area, use_container_width=True)
 
 
+def _render_campaign_creation_form(backend: UiBackendContext, state: dict[str, Any]) -> None:
+    saved_strategy = state.get("saved_strategy") or {}
+    saved_market = saved_strategy.get("market") or {}
+    market_query = state.get("market_query") or {}
+    builder_candles = state.get("market_data")
+    default_symbol = str(market_query.get("symbol") or saved_market.get("symbol") or "")
+    default_timeframe = str(market_query.get("timeframe") or saved_market.get("timeframe") or "")
+    default_source = "Builder" if isinstance(builder_candles, pd.DataFrame) and not builder_candles.empty else "CSV"
+
+    with st.expander("Executar nova campanha", expanded=False):
+        st.caption("Use os candles do builder ou envie um CSV para rodar o minerador pela interface.")
+        with st.form("run_mining_campaign_form"):
+            source_col, mode_col, quantity_col, topk_col = st.columns(4)
+            source_mode = source_col.selectbox("Origem dos candles", options=["Builder", "CSV"], index=["Builder", "CSV"].index(default_source))
+            evaluation_mode = mode_col.selectbox(
+                "Modo de avaliacao",
+                options=["simple", "robust", "robust_walk_forward"],
+                index=0,
+            )
+            quantity = int(quantity_col.number_input("Quantidade", min_value=1, value=25, step=1))
+            top_k = int(topk_col.number_input("Top K", min_value=0, value=5, step=1))
+
+            meta_col_1, meta_col_2, meta_col_3, meta_col_4 = st.columns(4)
+            campaign_name = meta_col_1.text_input("Nome da campanha", value="")
+            symbol = meta_col_2.text_input("Simbolo", value=default_symbol)
+            timeframe = meta_col_3.text_input("Timeframe", value=default_timeframe)
+            dataset_id = meta_col_4.text_input("Dataset ID", value="primary")
+
+            run_col_1, run_col_2, run_col_3 = st.columns(3)
+            seed = int(run_col_1.number_input("Seed", min_value=0, value=42, step=1))
+            max_rules_per_strategy = int(run_col_2.number_input("Max regras/estrategia", min_value=1, value=2, step=1))
+            min_split_bars = int(run_col_3.number_input("Min candles por particao", min_value=5, value=20, step=1))
+
+            filter_cols = st.columns(4)
+            min_trades = int(filter_cols[0].number_input("Min trades", min_value=0, value=5, step=1))
+            min_net_profit = float(filter_cols[1].number_input("Min net profit", value=0.0, step=1.0, format="%.2f"))
+            max_drawdown = float(filter_cols[2].number_input("Max drawdown", min_value=0.0, value=1000.0, step=10.0, format="%.2f"))
+            min_profit_factor = float(filter_cols[3].number_input("Min profit factor", min_value=0.0, value=1.1, step=0.1, format="%.2f"))
+
+            train_ratio = 0.7
+            test_ratio = 0.2
+            min_window_pass_rate = 1.0
+            max_windows_value = 0
+            if evaluation_mode in {"robust", "robust_walk_forward"}:
+                robust_cols = st.columns(4)
+                train_ratio = float(robust_cols[0].slider("Train ratio", min_value=0.1, max_value=0.9, value=0.7, step=0.05))
+                test_ratio = float(robust_cols[1].slider("Test ratio", min_value=0.1, max_value=0.8, value=0.2, step=0.05))
+                min_window_pass_rate = float(
+                    robust_cols[2].slider("Min window pass rate", min_value=0.0, max_value=1.0, value=1.0, step=0.05)
+                )
+                max_windows_value = int(robust_cols[3].number_input("Max windows (0 = sem limite)", min_value=0, value=0, step=1))
+
+            uploaded_file = None
+            if source_mode == "CSV":
+                uploaded_file = st.file_uploader("Dataset CSV", type=["csv"], key="campaign_csv_upload")
+            else:
+                loaded_count = len(builder_candles) if isinstance(builder_candles, pd.DataFrame) else 0
+                st.caption(f"Candles disponiveis no builder: {loaded_count}")
+
+            submit = st.form_submit_button("Executar campanha", use_container_width=True)
+
+        if not submit:
+            return
+
+        try:
+            candles = _resolve_campaign_candles(state, source_mode=source_mode, uploaded_file=uploaded_file)
+        except ValueError as exc:
+            st.error(str(exc))
+            return
+
+        filters = MinerFilterConfig(
+            min_trades=min_trades,
+            min_net_profit=min_net_profit,
+            max_drawdown=max_drawdown,
+            min_profit_factor=min_profit_factor,
+        )
+        evaluation = MinerEvaluationConfig(
+            mode=evaluation_mode,
+            train_ratio=train_ratio,
+            test_ratio=test_ratio,
+            minimum_partition_size=min_split_bars,
+            minimum_window_pass_rate=min_window_pass_rate,
+            max_walk_forward_windows=max_windows_value or None,
+            dataset_id=dataset_id.strip() or "primary",
+        )
+
+        with st.spinner("Executando campanha de mineracao..."):
+            result = backend.miner_service.mine_batch(
+                candles=candles,
+                quantity=quantity,
+                symbol=symbol.strip() or None,
+                timeframe=timeframe.strip() or None,
+                seed=seed,
+                top_k=top_k,
+                max_rules_per_strategy=max_rules_per_strategy,
+                filters=filters,
+                evaluation=evaluation,
+                campaign_name=campaign_name.strip() or None,
+            )
+
+        campaign = result["campaign"]
+        state["selected_campaign_id"] = campaign["id"]
+        st.success(
+            "Campanha concluida. "
+            f"Processadas: {result['summary']['processed']} | "
+            f"Aprovadas: {result['summary']['accepted']} | "
+            f"Top: {result['summary']['top_ranked']}"
+        )
+        if st.button("Abrir campanha criada", key=f"open-created-campaign-{campaign['id']}", use_container_width=True):
+            state["ui_page"] = "Detalhe da Campanha"
+            st.rerun()
+
+
 def _render_campaign_filters(
     campaigns: list[dict[str, Any]],
     summaries: dict[str, dict[str, Any] | None],
@@ -740,3 +857,37 @@ def _campaign_label(campaigns: list[dict[str, Any]], campaign_id: str) -> str:
 def _mean_or_zero(values: Any) -> float:
     values = list(values)
     return sum(values) / len(values) if values else 0.0
+
+
+def _resolve_campaign_candles(
+    state: dict[str, Any],
+    *,
+    source_mode: str,
+    uploaded_file: Any,
+) -> pd.DataFrame:
+    if source_mode == "Builder":
+        builder_candles = state.get("market_data")
+        if not isinstance(builder_candles, pd.DataFrame) or builder_candles.empty:
+            raise ValueError("Carregue candles no Builder antes de rodar uma campanha com essa origem.")
+        return builder_candles.sort_values("time").reset_index(drop=True).copy()
+
+    if uploaded_file is None:
+        raise ValueError("Envie um CSV para rodar a campanha.")
+
+    if hasattr(uploaded_file, "seek"):
+        uploaded_file.seek(0)
+    candles = pd.read_csv(uploaded_file)
+    required_columns = {"time", "open", "high", "low", "close"}
+    missing_columns = sorted(required_columns.difference(candles.columns))
+    if missing_columns:
+        raise ValueError(f"CSV invalido. Colunas obrigatorias ausentes: {', '.join(missing_columns)}")
+    if "tick_volume" not in candles.columns:
+        candles["tick_volume"] = 0
+    candles["time"] = pd.to_datetime(candles["time"], errors="coerce", utc=True)
+    for column in ["open", "high", "low", "close", "tick_volume"]:
+        candles[column] = pd.to_numeric(candles[column], errors="coerce")
+    candles = candles.dropna(subset=["time", "open", "high", "low", "close"])
+    candles = candles.dropna(subset=["time"]).sort_values("time").reset_index(drop=True)
+    if candles.empty:
+        raise ValueError("O CSV nao possui candles validos apos a normalizacao da coluna time.")
+    return candles.loc[:, ["time", "open", "high", "low", "close", "tick_volume"]].copy()

@@ -11,7 +11,7 @@ from builders.settings_builder import build_settings
 from builders.strategy_builder import build_strategy_payload
 from core.backtest_engine import run_backtest
 from state import get_state
-from ui.backend import get_ui_backend_context
+from ui.backend import UiBackendContext, get_ui_backend_context
 from ui.mining_pages import (
     render_backend_status,
     render_campaign_detail_page,
@@ -143,7 +143,19 @@ def _render_backtest(backtest_result: dict[str, Any], market_data: pd.DataFrame)
     st.dataframe(trades, use_container_width=True)
 
 
-def render_builder_page(state: dict[str, Any]) -> None:
+def _builder_execution_parameters() -> dict[str, Any]:
+    return {
+        "fill_policy": "next_candle_open",
+        "evaluation_mode": "manual_builder",
+        "dataset_role": "full",
+        "dataset_id": "builder",
+        "partition_origin": "builder",
+        "window_index": 0,
+        "window_label": "builder",
+    }
+
+
+def render_builder_page(state: dict[str, Any], backend: UiBackendContext) -> None:
     st.title("AlphaForge - Strategy Builder")
     st.caption("Visual builder para estrategias de trading integradas ao MetaTrader 5.")
 
@@ -180,11 +192,17 @@ def render_builder_page(state: dict[str, Any]) -> None:
         "candle_constraints": signal_config["candle_constraints"],
     }
 
-    button_col_1, button_col_2, _, _ = st.columns(4)
+    button_col_1, button_col_2, button_col_3, button_col_4 = st.columns(4)
     save_clicked = button_col_1.button("Salvar Estrutura", use_container_width=True)
-    show_clicked = button_col_2.button("Exibir JSON da Estrategia", use_container_width=True)
+    persist_strategy_clicked = button_col_2.button("Salvar no Backend", use_container_width=True)
+    persist_backtest_clicked = button_col_3.button(
+        "Persistir Backtest",
+        use_container_width=True,
+        disabled=state["market_data"].empty,
+    )
+    show_clicked = button_col_4.button("Exibir JSON da Estrategia", use_container_width=True)
 
-    if save_clicked or show_clicked:
+    if save_clicked or persist_strategy_clicked or persist_backtest_clicked or show_clicked:
         entry_rules = build_entry_rules(signal_config["ready_signals"])
         exit_rules = build_exit_rules(signal_config["ready_signals"])
         settings = build_settings(
@@ -215,6 +233,50 @@ def render_builder_page(state: dict[str, Any]) -> None:
             state["saved_strategy"] = payload
             st.success("Estrutura da estrategia salva na sessao atual.")
 
+        persisted_strategy: dict[str, Any] | None = None
+        if persist_strategy_clicked or persist_backtest_clicked:
+            with st.spinner("Persistindo estrategia..."):
+                persisted_strategy = backend.strategy_service.ensure_strategy(payload, origin="manual")
+            state["selected_strategy_version_id"] = persisted_strategy["strategy_version"]["id"]
+            deduplicated = bool(persisted_strategy.get("deduplicated"))
+            message = (
+                "Estrategia ja existia no backend; referencia carregada com sucesso."
+                if deduplicated
+                else "Estrategia persistida no backend."
+            )
+            st.success(message)
+            st.caption(
+                f"Strategy ID: {persisted_strategy['strategy']['id']} | "
+                f"Version ID: {persisted_strategy['strategy_version']['id']}"
+            )
+
+        if persist_backtest_clicked:
+            market_data = state["market_data"]
+            if persisted_strategy is None:
+                persisted_strategy = backend.strategy_service.ensure_strategy(payload, origin="manual")
+            with st.spinner("Executando e persistindo backtest..."):
+                execution = backend.backtest_service.run_and_persist_backtest(
+                    strategy_version=persisted_strategy["strategy_version"],
+                    strategy=persisted_strategy["strategy_spec"],
+                    candles=market_data,
+                    execution_parameters=_builder_execution_parameters(),
+                )
+            persisted = execution["persistence"]
+            run_row = persisted["backtest_run"]
+            state["selected_backtest_run_id"] = run_row["id"]
+            state["selected_strategy_run_ids"] = [run_row["id"]]
+            state["selected_strategy_position"] = 0
+            status_message = (
+                "Backtest ja existia no backend; referencia carregada."
+                if persisted.get("deduplicated")
+                else "Backtest persistido com sucesso."
+            )
+            st.success(status_message)
+            st.caption(f"Run ID: {run_row['id']}")
+            if st.button("Abrir detalhe da estrategia", key="open-persisted-builder-run", use_container_width=True):
+                state["ui_page"] = "Detalhe da Estrategia"
+                st.rerun()
+
         st.json(payload)
 
         market_data = state["market_data"]
@@ -238,7 +300,7 @@ def render_app() -> None:
     render_backend_status(backend)
 
     if current_page == "Builder":
-        render_builder_page(state)
+        render_builder_page(state, backend)
         return
     if current_page == "Campanhas":
         render_campaigns_page(backend, state)

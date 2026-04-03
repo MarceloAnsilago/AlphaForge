@@ -79,6 +79,15 @@ class PersistenceServicesTests(unittest.TestCase):
         versions = self.strategy_repository.list_strategy_versions(created["strategy"]["id"])
         self.assertEqual(len(versions), 2)
 
+    def test_ensure_strategy_reuses_existing_version_by_fingerprint(self) -> None:
+        created = self.strategy_service.ensure_strategy(_strategy_payload())
+        reused = self.strategy_service.ensure_strategy(_strategy_payload())
+
+        self.assertFalse(created["deduplicated"])
+        self.assertTrue(reused["deduplicated"])
+        self.assertEqual(created["strategy"]["id"], reused["strategy"]["id"])
+        self.assertEqual(created["strategy_version"]["id"], reused["strategy_version"]["id"])
+
     def test_persist_backtest_run_metrics_and_trades(self) -> None:
         created = self.strategy_service.create_strategy(_strategy_payload())
         execution = self.backtest_service.run_and_persist_backtest(
@@ -98,6 +107,7 @@ class PersistenceServicesTests(unittest.TestCase):
         self.assertIn("stability", persistence["backtest_metrics"])
         self.assertEqual(len(persistence["backtest_trades"]), 1)
         self.assertTrue(persistence["backtest_run"]["input_fingerprint"])
+        self.assertFalse(persistence["deduplicated"])
 
     def test_persist_metrics_without_trades(self) -> None:
         created = self.strategy_service.create_strategy(
@@ -116,6 +126,29 @@ class PersistenceServicesTests(unittest.TestCase):
 
         self.assertEqual(execution["persistence"]["backtest_metrics"]["total_trades"], 0)
         self.assertEqual(len(execution["persistence"]["backtest_trades"]), 0)
+
+    def test_persist_backtest_reuses_existing_run_when_input_matches(self) -> None:
+        created = self.strategy_service.create_strategy(_strategy_payload())
+        first = self.backtest_service.run_and_persist_backtest(
+            strategy_version=created["strategy_version"],
+            strategy=created["strategy_spec"],
+            candles=_candles(),
+            execution_parameters={"fill_policy": "next_candle_open"},
+        )
+        second = self.backtest_service.run_and_persist_backtest(
+            strategy_version=created["strategy_version"],
+            strategy=created["strategy_spec"],
+            candles=_candles(),
+            execution_parameters={"fill_policy": "next_candle_open"},
+        )
+
+        self.assertFalse(first["persistence"]["deduplicated"])
+        self.assertTrue(second["persistence"]["deduplicated"])
+        self.assertEqual(
+            first["persistence"]["backtest_run"]["id"],
+            second["persistence"]["backtest_run"]["id"],
+        )
+        self.assertEqual(len(self.db.tables["backtest_runs"]), 1)
 
 
 if __name__ == "__main__":

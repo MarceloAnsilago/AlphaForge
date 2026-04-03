@@ -5,7 +5,7 @@ import json
 
 import pandas as pd
 
-from infra.db.supabase_client import InMemoryDatabaseClient, build_supabase_client_from_env
+from infra.db.supabase_client import build_database_client
 from infra.repositories.backtest_repository import BacktestRepository
 from infra.repositories.mining_campaign_repository import MiningCampaignRepository
 from infra.repositories.strategy_repository import StrategyRepository
@@ -25,9 +25,8 @@ def _load_candles(csv_path: str) -> pd.DataFrame:
 
 
 def _build_db_client(backend: str):
-    if backend == "supabase":
-        return build_supabase_client_from_env()
-    return InMemoryDatabaseClient()
+    db, _, _ = build_database_client(backend)
+    return db
 
 
 def main() -> None:
@@ -39,7 +38,12 @@ def main() -> None:
     parser.add_argument("--timeframe", default=None, help="Timeframe associado ao dataset.")
     parser.add_argument("--top-k", type=int, default=5, help="Quantidade de top estrategias marcadas.")
     parser.add_argument("--max-rules", type=int, default=2, help="Numero maximo de regras por estrategia.")
-    parser.add_argument("--db", choices=["memory", "supabase"], default="memory", help="Backend de persistencia.")
+    parser.add_argument(
+        "--db",
+        choices=["auto", "file", "memory", "supabase"],
+        default="auto",
+        help="Backend de persistencia.",
+    )
     parser.add_argument("--mode", choices=["simple", "robust", "robust_walk_forward"], default="simple", help="Modo de avaliacao do minerador.")
     parser.add_argument("--train-ratio", type=float, default=0.7, help="Percentual do dataset usado no treino nos modos robustos.")
     parser.add_argument("--test-ratio", type=float, default=0.2, help="Percentual do dataset usado no teste por janela no walk-forward.")

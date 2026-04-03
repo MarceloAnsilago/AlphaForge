@@ -1,4 +1,7 @@
+altair
+pytest
 streamlit
 pandas
 numpy
 MetaTrader5
+supabase

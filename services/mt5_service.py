@@ -61,6 +61,8 @@ def load_market_data(
     return {
         "data": candles,
         "query": {
+            "symbol": symbol,
+            "timeframe": timeframe,
             "period_mode": period_mode,
             "custom_start_date": custom_start_date.isoformat()
             if custom_start_date is not None

@@ -9,5 +9,14 @@ venv\Scripts\activate.bat
 Linux/Mac:
 source venv/bin/activate
 
+Instalar dependencias:
 pip install -r requirements.txt
+
+Abrir a interface:
 streamlit run app.py
+
+Rodar os testes:
+pytest -q
+
+Executar minerador por CLI com backend local:
+python workers\miner_worker.py --dataset .\data\candles.csv --db auto

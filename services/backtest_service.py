@@ -86,6 +86,16 @@ class BacktestService:
             candles=candles,
             execution_parameters=execution_parameters,
         )
+        existing_run = self._backtest_repository.find_run_by_input_fingerprint(input_fingerprint)
+        if existing_run is not None:
+            metrics_row = self._backtest_repository.get_backtest_metrics(existing_run["id"])
+            trade_records = self._backtest_repository.list_backtest_trades(existing_run["id"])
+            return {
+                "backtest_run": existing_run,
+                "backtest_metrics": metrics_row,
+                "backtest_trades": trade_records,
+                "deduplicated": True,
+            }
         run_payload = {
             "strategy_version_id": strategy_version["id"],
             "strategy_id": strategy_version["strategy_id"],
@@ -171,4 +181,5 @@ class BacktestService:
             "backtest_run": run_row,
             "backtest_metrics": metrics_row,
             "backtest_trades": trade_records,
+            "deduplicated": False,
         }

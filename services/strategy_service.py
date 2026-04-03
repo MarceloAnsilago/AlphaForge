@@ -14,6 +14,30 @@ class StrategyService:
     def __init__(self, strategy_repository: StrategyRepository) -> None:
         self._strategy_repository = strategy_repository
 
+    def ensure_strategy(
+        self,
+        strategy: dict[str, Any] | StrategyDraft | StrategySpec,
+        origin: str = "manual",
+    ) -> dict[str, Any]:
+        strategy_spec = normalize_strategy(strategy)
+        fingerprint = strategy_spec_fingerprint(strategy_spec)
+        existing_version = self._strategy_repository.find_any_version_by_fingerprint(fingerprint)
+        if existing_version is not None:
+            strategy_row = self._strategy_repository.get_strategy(existing_version["strategy_id"])
+            if strategy_row is None:
+                raise ValueError(f"Strategy nao encontrada: {existing_version['strategy_id']}")
+            return {
+                "strategy": strategy_row,
+                "strategy_version": existing_version,
+                "strategy_spec": strategy_spec,
+                "deduplicated": True,
+            }
+        created = self.create_strategy(strategy_spec, origin=origin)
+        return {
+            **created,
+            "deduplicated": False,
+        }
+
     def create_strategy(self, strategy: dict[str, Any] | StrategyDraft | StrategySpec, origin: str = "manual") -> dict[str, Any]:
         strategy_spec = normalize_strategy(strategy)
         strategy_row = self._strategy_repository.create_strategy(
