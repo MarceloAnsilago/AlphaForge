@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% import "components/card.html" as ui %}
+{% import "components/data.html" as data %}
+{% import "components/metric.html" as metric %}
+
+{% block content %}
+  {% call ui.card(class_name="af-panel") %}
+    <div class="d-flex justify-content-between gap-3 align-items-start">
+      <div>
+        <div class="af-section-title mb-1">{{ campaign.name or campaign.id }}</div>
+        <div class="text-muted">{{ campaign.status }} | {{ campaign.evaluation_mode }} | {{ campaign.symbol or "-" }} {{ campaign.timeframe or "" }}</div>
+      </div>
+      <a class="btn btn-outline-dark" href="{{ url_for('pages.campaigns_page') }}">Voltar</a>
+    </div>
+    <div class="row g-3 mt-2">
+      <div class="col-lg-2">{{ metric.metric("Geradas", summary.generated_quantity or 0) }}</div>
+      <div class="col-lg-2">{{ metric.metric("Dedup", summary.deduplicated_quantity or 0) }}</div>
+      <div class="col-lg-2">{{ metric.metric("Aprovadas", summary.approved_quantity or 0, None, "success") }}</div>
+      <div class="col-lg-2">{{ metric.metric("Pass rate", "%.2f"|format(summary.average_pass_rate or 0), None, "accent") }}</div>
+      <div class="col-lg-2">{{ metric.metric("Estabilidade", "%.2f"|format(summary.average_stability or 0)) }}</div>
+      <div class="col-lg-2">{{ metric.metric("Runs finais", summary.final_run_count or 0) }}</div>
+    </div>
+  {% endcall %}
+
+  <div class="row g-3 mb-4">
+    {% for row in top_strategies %}
+      <div class="col-lg-4">
+        {% call ui.card(class_name="h-100 af-panel") %}
+          <div class="text-muted small mb-2">TOP {{ row.top_rank or "-" }}</div>
+          <div class="af-section-title">{{ row.strategy_name or row.strategy_id }}</div>
+          <div class="text-muted mb-3">{{ row.strategy_direction or "-" }} | score {{ "%.2f"|format(row.score or 0) }}</div>
+          <a class="btn btn-dark btn-sm" href="{{ url_for('pages.strategy_detail_page', run_id=row.backtest_run_id) }}">Abrir estrategia</a>
+        {% endcall %}
+      </div>
+    {% else %}
+      <div class="col-12">{% call ui.card(class_name="af-panel") %}Nenhuma estrategia aprovada para destacar.{% endcall %}</div>
+    {% endfor %}
+  </div>
+
+  {% if walk_forward_chart %}
+    {% call ui.card(title="Walk-forward", subtitle="Score, estabilidade e pass rate por janela", class_name="af-panel") %}
+      <div class="af-echart" data-chart-config='{{ {"type": "walkforward", "data": walk_forward_chart}|tojson|forceescape }}'></div>
+    {% endcall %}
+  {% endif %}
+
+  {% call ui.card(title="Ranking completo", class_name="af-panel") %}
+    <div class="table-responsive">
+      <table class="table table-hover af-table mb-0">
+        <thead><tr><th>Rank</th><th>Estrategia</th><th>Status</th><th>Score</th><th>PnL</th><th>PF</th><th></th></tr></thead>
+        <tbody>
+          {% for row in runs %}
+            <tr>
+              <td>{{ row.top_rank or "-" }}</td>
+              <td>{{ row.strategy_name or row.strategy_id }}</td>
+              <td>{{ row.status }}</td>
+              <td>{{ "%.2f"|format(row.score or 0) }}</td>
+              <td>{{ "%.2f"|format((row.metrics or {}).get('net_profit', 0)) }}</td>
+              <td>{{ "%.2f"|format((row.metrics or {}).get('profit_factor', 0)) }}</td>
+              <td>{% if row.id %}<a class="btn btn-sm btn-outline-dark" href="{{ url_for('pages.strategy_detail_page', run_id=row.id) }}">Abrir</a>{% endif %}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="7">Nenhum run disponivel.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endcall %}
+
+  {% if walk_forward_rows %}
+    {% call ui.card(title="Tabela walk-forward", class_name="af-panel") %}
+      {{ data.table(walk_forward_columns, walk_forward_rows) }}
+    {% endcall %}
+  {% endif %}
+{% endblock %}

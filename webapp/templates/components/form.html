@@ -1,0 +1,11 @@
+{% macro option_list(options, current) -%}
+  {% for option in options %}
+    <option value="{{ option }}" {% if current|string == option|string %}selected{% endif %}>{{ option }}</option>
+  {% endfor %}
+{%- endmacro %}
+
+{% macro named_options(options, current) -%}
+  {% for option in options %}
+    <option value="{{ option.value }}" {% if current|string == option.value|string %}selected{% endif %}>{{ option.label }}</option>
+  {% endfor %}
+{%- endmacro %}

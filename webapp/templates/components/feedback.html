@@ -1,0 +1,16 @@
+{% macro alerts(messages, class_name="mb-4") -%}
+  {% if messages %}
+    <div class="{{ class_name }}">
+      {% for message in messages %}
+        <div class="alert alert-{{ message.category }} af-alert" role="alert">{{ message.text }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{%- endmacro %}
+
+{% macro loading(id, label="Processando...") -%}
+  <div id="{{ id }}" class="af-loading htmx-indicator">
+    <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+    <span>{{ label }}</span>
+  </div>
+{%- endmacro %}

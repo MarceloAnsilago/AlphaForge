@@ -28,6 +28,7 @@ def _default_state() -> dict[str, Any]:
         "builder_form": {},
         "builder_payload": None,
         "builder_backtest": None,
+        "builder_dirty": False,
     }
 
 

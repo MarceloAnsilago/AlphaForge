@@ -1,0 +1,22 @@
+{% macro table(columns, rows, class_name="", empty_text="Nenhum registro disponivel.") -%}
+  <div class="table-responsive {{ class_name }}">
+    <table class="table table-hover af-table mb-0">
+      <thead>
+        <tr>{% for column in columns %}<th>{{ column }}</th>{% endfor %}</tr>
+      </thead>
+      <tbody>
+        {% if rows %}
+          {% for row in rows %}
+            <tr>{% for column in columns %}<td>{{ row[column] }}</td>{% endfor %}</tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="{{ columns|length if columns else 1 }}">{{ empty_text }}</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+{%- endmacro %}
+
+{% macro json_block(value, class_name="") -%}
+  <pre class="af-code {{ class_name }}">{{ value }}</pre>
+{%- endmacro %}

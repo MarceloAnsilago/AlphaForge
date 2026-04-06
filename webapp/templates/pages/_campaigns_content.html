@@ -1,0 +1,79 @@
+{% import "components/card.html" as ui %}
+{% import "components/form.html" as forms %}
+{% import "components/metric.html" as metric %}
+
+<div id="campaigns-content" class="af-stack">
+  {% call ui.card(title="Nova campanha", subtitle="Mineracao em lote com a base do Builder ou CSV externo", class_name="af-panel") %}
+    <form method="post" enctype="multipart/form-data">
+      <div class="row g-3">
+        <div class="col-lg-3"><label class="form-label">Origem</label><select class="form-select" name="source_mode"><option value="Builder" {% if campaign_form_defaults.source_mode == 'Builder' %}selected{% endif %}>Builder</option><option value="CSV" {% if campaign_form_defaults.source_mode == 'CSV' %}selected{% endif %}>CSV</option></select></div>
+        <div class="col-lg-3"><label class="form-label">Modo</label><select class="form-select" name="evaluation_mode"><option value="simple">simple</option><option value="robust">robust</option><option value="robust_walk_forward">robust_walk_forward</option></select></div>
+        <div class="col-lg-3"><label class="form-label">Quantidade</label><input class="form-control" name="quantity" value="{{ campaign_form_defaults.quantity }}"></div>
+        <div class="col-lg-3"><label class="form-label">Top K</label><input class="form-control" name="top_k" value="{{ campaign_form_defaults.top_k }}"></div>
+        <div class="col-lg-3"><label class="form-label">Nome</label><input class="form-control" name="campaign_name" value="{{ campaign_form_defaults.campaign_name }}"></div>
+        <div class="col-lg-3"><label class="form-label">Simbolo</label><input class="form-control" name="symbol" value="{{ campaign_form_defaults.symbol }}"></div>
+        <div class="col-lg-3"><label class="form-label">Timeframe</label><input class="form-control" name="timeframe" value="{{ campaign_form_defaults.timeframe }}"></div>
+        <div class="col-lg-3"><label class="form-label">Dataset ID</label><input class="form-control" name="dataset_id" value="{{ campaign_form_defaults.dataset_id }}"></div>
+        <div class="col-lg-3"><label class="form-label">Seed</label><input class="form-control" name="seed" value="{{ campaign_form_defaults.seed }}"></div>
+        <div class="col-lg-3"><label class="form-label">Max regras</label><input class="form-control" name="max_rules_per_strategy" value="{{ campaign_form_defaults.max_rules_per_strategy }}"></div>
+        <div class="col-lg-3"><label class="form-label">Min candles/particao</label><input class="form-control" name="min_split_bars" value="{{ campaign_form_defaults.min_split_bars }}"></div>
+        <div class="col-lg-3"><label class="form-label">Min trades</label><input class="form-control" name="min_trades" value="{{ campaign_form_defaults.min_trades }}"></div>
+        <div class="col-lg-3"><label class="form-label">Min net profit</label><input class="form-control" name="min_net_profit" value="{{ campaign_form_defaults.min_net_profit }}"></div>
+        <div class="col-lg-3"><label class="form-label">Max drawdown</label><input class="form-control" name="max_drawdown" value="{{ campaign_form_defaults.max_drawdown }}"></div>
+        <div class="col-lg-3"><label class="form-label">Min profit factor</label><input class="form-control" name="min_profit_factor" value="{{ campaign_form_defaults.min_profit_factor }}"></div>
+        <div class="col-lg-3"><label class="form-label">Train ratio</label><input class="form-control" name="train_ratio" value="{{ campaign_form_defaults.train_ratio }}"></div>
+        <div class="col-lg-3"><label class="form-label">Test ratio</label><input class="form-control" name="test_ratio" value="{{ campaign_form_defaults.test_ratio }}"></div>
+        <div class="col-lg-3"><label class="form-label">Min window pass rate</label><input class="form-control" name="min_window_pass_rate" value="{{ campaign_form_defaults.min_window_pass_rate }}"></div>
+        <div class="col-lg-3"><label class="form-label">Max windows</label><input class="form-control" name="max_windows_value" value="{{ campaign_form_defaults.max_windows_value }}"></div>
+        <div class="col-lg-6"><label class="form-label">CSV</label><input class="form-control" type="file" name="campaign_csv"></div>
+        <div class="col-lg-6 d-flex align-items-end"><button class="btn btn-primary w-100" type="submit">Executar campanha</button></div>
+      </div>
+      <div class="text-muted small mt-3">Candles disponiveis no Builder: {{ builder_candle_count }}</div>
+    </form>
+  {% endcall %}
+
+  {% call ui.card(title="Filtros", subtitle="Busca local sem recarregar a pagina", class_name="af-panel") %}
+    <form
+      method="get"
+      hx-get="{{ url_for('pages.campaigns_page') }}"
+      hx-target="#campaigns-content"
+      hx-swap="outerHTML"
+      hx-push-url="true"
+    >
+      <div class="row g-3">
+        <div class="col-lg-4"><label class="form-label">Buscar campanha</label><input class="form-control" name="query" value="{{ filters.query }}"></div>
+        <div class="col-lg-4"><label class="form-label">Simbolo</label><select class="form-select" name="symbol"><option value="Todos" {% if filters.symbol == 'Todos' %}selected{% endif %}>Todos</option>{{ forms.option_list(filter_options.symbols, filters.symbol) }}</select></div>
+        <div class="col-lg-4"><label class="form-label">Timeframe</label><select class="form-select" name="timeframe"><option value="Todos" {% if filters.timeframe == 'Todos' %}selected{% endif %}>Todos</option>{{ forms.option_list(filter_options.timeframes, filters.timeframe) }}</select></div>
+        <div class="col-lg-3"><button class="btn btn-outline-primary w-100" type="submit">Aplicar</button></div>
+      </div>
+    </form>
+  {% endcall %}
+
+  <div class="row g-3">
+    {% for campaign in campaigns %}
+      <div class="col-xl-6">
+        {% call ui.card(class_name="h-100 af-panel") %}
+          <div class="d-flex justify-content-between gap-3">
+            <div>
+              <div class="af-section-title mb-1">{{ campaign.name or campaign.id }}</div>
+              <div class="text-muted small">{{ campaign.evaluation_mode }} | {{ campaign.symbol or "-" }} {{ campaign.timeframe or "" }} | dataset {{ campaign.dataset_id }}</div>
+            </div>
+            <a class="btn btn-dark btn-sm" href="{{ url_for('pages.campaign_detail_page', campaign_id=campaign.id) }}">Abrir</a>
+          </div>
+          <div class="row g-3 mt-2">
+            <div class="col-6 col-lg-3">{{ metric.metric("Geradas", campaign.summary.generated_quantity or campaign.quantity or 0) }}</div>
+            <div class="col-6 col-lg-3">{{ metric.metric("Dedup", campaign.summary.deduplicated_quantity or 0) }}</div>
+            <div class="col-6 col-lg-3">{{ metric.metric("Aprovadas", campaign.summary.approved_quantity or 0, None, "success") }}</div>
+            <div class="col-6 col-lg-3">{{ metric.metric("Estabilidade", "%.2f"|format(campaign.summary.average_stability or 0), None, "accent") }}</div>
+          </div>
+        {% endcall %}
+      </div>
+    {% else %}
+      <div class="col-12">
+        {% call ui.card(class_name="af-panel") %}
+          Nenhuma campanha encontrada.
+        {% endcall %}
+      </div>
+    {% endfor %}
+  </div>
+</div>

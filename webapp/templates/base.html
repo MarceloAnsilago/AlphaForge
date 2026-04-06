@@ -15,7 +15,7 @@
     <aside class="af-sidebar">
       <div>
         <div class="af-brand">AlphaForge</div>
-        <div class="af-brand-subtitle">Flask front-end paralelo</div>
+        <div class="af-brand-subtitle">Flask + HTMX trading workspace</div>
       </div>
 
       <nav class="nav flex-column gap-2 mt-4">
@@ -37,7 +37,7 @@
       <header class="af-header">
         <div>
           <h1 class="af-title">{{ page_title }}</h1>
-          <div class="af-subtitle">Streamlit preservado. Esta interface roda em paralelo.</div>
+          <div class="af-subtitle">Interface reorganizada para execucao, analise e persistencia sem reload desnecessario.</div>
         </div>
       </header>
 
@@ -45,7 +45,7 @@
         {% if messages %}
           <div class="mb-4">
             {% for category, message in messages %}
-              <div class="alert alert-{{ category }} mb-2">{{ message }}</div>
+              <div class="alert alert-{{ category }} af-alert mb-2">{{ message }}</div>
             {% endfor %}
           </div>
         {% endif %}
@@ -56,7 +56,9 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

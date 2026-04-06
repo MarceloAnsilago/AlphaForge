@@ -1,0 +1,7 @@
+{% macro metric(label, value, caption=None, tone="default", class_name="") -%}
+  <div class="af-metric af-metric-{{ tone }} {{ class_name }}">
+    <div class="af-metric-label">{{ label }}</div>
+    <div class="af-metric-value">{{ value }}</div>
+    {% if caption %}<div class="af-metric-caption">{{ caption }}</div>{% endif %}
+  </div>
+{%- endmacro %}
