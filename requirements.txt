@@ -1,6 +1,4 @@
 altair
-flask
-pywebview
 pytest
 streamlit
 streamlit-option-menu

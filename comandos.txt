@@ -15,12 +15,6 @@ pip install -r requirements.txt
 Abrir a interface:
 streamlit run app.py
 
-Abrir a interface Flask:
-python flask_app.py
-
-Abrir a interface desktop com pywebview:
-python desktop_app.py
-
 Rodar os testes:
 pytest -q
 
