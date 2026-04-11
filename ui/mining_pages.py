@@ -6,11 +6,6 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-try:
-    from streamlit_option_menu import option_menu
-except ModuleNotFoundError:
-    option_menu = None
-
 from domain.miner.space import MinerEvaluationConfig, MinerFilterConfig
 from ui.backend import UiBackendContext
 from ui.mining_helpers import (
@@ -28,45 +23,82 @@ def render_mining_pages_style() -> None:
         """
         <style>
             [data-testid="stSidebar"] {
-                border-right: 1px solid rgba(148, 163, 184, 0.18);
-                background:
-                    radial-gradient(circle at top, rgba(59, 130, 246, 0.10), transparent 36%),
-                    linear-gradient(180deg, #f8fbff 0%, #f4f8fc 100%);
+                border-right: 1px solid rgba(203, 213, 225, 0.45);
+                background: linear-gradient(180deg, #eef2f7 0%, #e8edf4 100%);
             }
 
             [data-testid="stSidebar"] .block-container {
-                padding-top: 1.15rem;
+                padding-top: 1.4rem;
                 padding-bottom: 1rem;
+                padding-left: 0.9rem;
+                padding-right: 0.9rem;
             }
 
-            .sidebar-brand {
-                border: 1px solid rgba(148, 163, 184, 0.22);
-                border-radius: 18px;
-                padding: 0.95rem 1rem;
-                background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(239, 246, 255, 0.94));
+            .sidebar-nav-shell {
+                background: #ffffff;
+                border: 1px solid rgba(226, 232, 240, 0.95);
+                border-radius: 16px;
+                box-shadow: 0 18px 32px -28px rgba(15, 23, 42, 0.22);
+                padding: 1rem 0.65rem 1rem 0.65rem;
                 margin-bottom: 1rem;
-                box-shadow: 0 16px 30px -24px rgba(15, 23, 42, 0.35);
             }
 
-            .sidebar-brand__eyebrow {
-                font-size: 0.72rem;
-                font-weight: 800;
-                letter-spacing: 0.12em;
-                text-transform: uppercase;
-                color: #315b96;
-                margin-bottom: 0.2rem;
+            .sidebar-nav-title {
+                display: flex;
+                align-items: center;
+                gap: 0.7rem;
+                font-size: 0.98rem;
+                font-weight: 700;
+                color: #1f2a44;
+                padding: 0.05rem 0.45rem 0.85rem 0.45rem;
+                margin-bottom: 0.75rem;
+                border-bottom: 1px solid rgba(148, 163, 184, 0.35);
             }
 
-            .sidebar-brand__title {
-                font-size: 1.05rem;
-                font-weight: 800;
-                color: #10233d;
-                margin-bottom: 0.18rem;
+            .sidebar-nav-title::before {
+                content: "🖥";
+                font-size: 1rem;
             }
 
-            .sidebar-brand__text {
-                font-size: 0.82rem;
-                color: #5b6f87;
+            [data-testid="stSidebar"] [data-testid="stRadio"] label {
+                display: none;
+            }
+
+            [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] {
+                gap: 0.16rem;
+            }
+
+            [data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"] {
+                margin: 0 !important;
+                border-radius: 8px;
+                padding: 0.68rem 0.95rem !important;
+                background: transparent;
+                transition: background-color 0.15s ease, color 0.15s ease;
+            }
+
+            [data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"]:hover {
+                background: #f8fafc;
+            }
+
+            [data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"] > div:first-child {
+                display: none;
+            }
+
+            [data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"] p {
+                font-size: 0.9rem;
+                font-weight: 500;
+                color: #182640;
+                line-height: 1.2;
+                margin: 0;
+            }
+
+            [data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) {
+                background: #ff4b4b;
+            }
+
+            [data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) p {
+                color: #ffffff;
+                font-weight: 700;
             }
 
             .campaign-card {
@@ -145,68 +177,29 @@ def render_mining_pages_style() -> None:
 
 def render_sidebar_navigation(state: dict[str, Any]) -> str:
     pages = ["Builder", "Campanhas", "Detalhe da Campanha", "Detalhe da Estrategia"]
-    page_icons = ["sliders", "collection", "flag", "graph-up-arrow"]
+    page_labels = {
+        "Builder": "🧩  Builder",
+        "Campanhas": "🗂  Campanhas",
+        "Detalhe da Campanha": "📋  Detalhe da Campanha",
+        "Detalhe da Estrategia": "📈  Detalhe da Estrategia",
+    }
     current_page = state.get("ui_page", "Builder")
     if current_page not in pages:
         current_page = "Builder"
 
     with st.sidebar:
-        st.markdown(
-            """
-            <div class="sidebar-brand">
-              <div class="sidebar-brand__eyebrow">AlphaForge</div>
-              <div class="sidebar-brand__title">Workspace</div>
-              <div class="sidebar-brand__text">Builder, campanhas e analise em um menu lateral mais compacto.</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
+        st.markdown("<div class='sidebar-nav-shell'>", unsafe_allow_html=True)
+        st.markdown("<div class='sidebar-nav-title'>Navegacao</div>", unsafe_allow_html=True)
+        selected_label = st.radio(
+            "Navegacao",
+            options=[page_labels[page] for page in pages],
+            index=pages.index(current_page),
+            label_visibility="collapsed",
         )
+        st.markdown("</div>", unsafe_allow_html=True)
 
-        if option_menu is not None:
-            selected_page = option_menu(
-                menu_title="Navegacao",
-                options=pages,
-                icons=page_icons,
-                menu_icon="grid-1x2-fill",
-                default_index=pages.index(current_page),
-                styles={
-                    "container": {
-                        "padding": "0.35rem 0 0 0",
-                        "background-color": "transparent",
-                    },
-                    "menu-title": {
-                        "font-size": "0.78rem",
-                        "font-weight": "700",
-                        "letter-spacing": "0.08em",
-                        "text-transform": "uppercase",
-                        "color": "#5b6f87",
-                        "padding": "0 0.25rem 0.4rem 0.25rem",
-                    },
-                    "nav-link": {
-                        "font-size": "0.95rem",
-                        "font-weight": "600",
-                        "color": "#183153",
-                        "border-radius": "14px",
-                        "padding": "0.7rem 0.9rem",
-                        "margin": "0.2rem 0",
-                        "--hover-color": "rgba(59, 130, 246, 0.10)",
-                    },
-                    "nav-link-selected": {
-                        "background": "linear-gradient(135deg, #123a6b 0%, #2563eb 100%)",
-                        "color": "#ffffff",
-                        "box-shadow": "0 12px 26px -18px rgba(37, 99, 235, 0.9)",
-                    },
-                    "icon": {
-                        "font-size": "1rem",
-                    },
-                },
-            )
-        else:
-            selected_page = st.radio(
-                "Navegacao",
-                options=pages,
-                index=pages.index(current_page),
-            )
+    reverse_labels = {label: page for page, label in page_labels.items()}
+    selected_page = reverse_labels[selected_label]
 
     state["ui_page"] = selected_page
     return selected_page
