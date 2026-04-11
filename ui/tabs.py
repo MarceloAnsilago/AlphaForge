@@ -49,10 +49,10 @@ def apply_page_style() -> None:
         """
         <style>
             .block-container {
-                max-width: 1100px;
+                max-width: 1600px;
                 margin: 0 auto;
-                padding-left: 1.5rem;
-                padding-right: 1.5rem;
+                padding-left: 0.85rem;
+                padding-right: 0.85rem;
                 padding-top: 2rem;
                 padding-bottom: 3rem;
             }
@@ -220,15 +220,14 @@ def render_connection_tab(tab: Any, state: dict[str, Any]) -> None:
                 state["mt5_connected"] = connection_result["connected"]
                 state["mt5_status"] = connection_result["status"]
                 if connection_result["connected"]:
-                    symbols_result = load_terminal_symbols()
-                    state["symbols"] = symbols_result["symbols"]
-                    state["symbols_status"] = symbols_result["status"]
+                    state["symbols"] = []
+                    state["symbols_status"] = ""
                 else:
                     state["symbols"] = []
                     state["symbols_status"] = ""
 
             if load_symbols_col.button(
-                "Carregar simbolos",
+                "Carregar simbolos (opcional)",
                 use_container_width=True,
                 disabled=not state["mt5_connected"],
             ):
@@ -243,10 +242,9 @@ def render_connection_tab(tab: Any, state: dict[str, Any]) -> None:
             else:
                 st.info("Clique no botao para conectar ao MetaTrader 5.")
 
-            if state["mt5_connected"] and not state["symbols"]:
-                st.info(
-                    "Conexao realizada, mas nenhum simbolo foi carregado automaticamente. "
-                    "Use 'Carregar simbolos' para tentar novamente."
+            if state["mt5_connected"]:
+                st.caption(
+                    "Digite o ativo diretamente na aba 2. Carregar a lista completa de simbolos agora e opcional."
                 )
 
             if state["symbols_status"]:
@@ -259,15 +257,18 @@ def render_connection_tab(tab: Any, state: dict[str, Any]) -> None:
 def render_market_data_tab(tab: Any, state: dict[str, Any]) -> dict[str, Any]:
     market_data = state["market_data"]
     market_query = state["market_query"]
-    available_symbols = state["symbols"]
     show_market_chart = state["show_market_chart"]
+    selected_symbol_default = ""
+    if market_query:
+        selected_symbol_default = str(market_query.get("symbol") or "")
 
     with tab:
         with st.expander("Dados de mercado", expanded=False):
-            selected_symbol = st.selectbox(
+            selected_symbol = st.text_input(
                 "Simbolo",
-                options=available_symbols if available_symbols else ["Sem simbolos disponiveis"],
-                disabled=not bool(available_symbols),
+                value=selected_symbol_default,
+                placeholder="Ex.: EURUSD",
+                help="Informe o ativo manualmente para consultar os candles sem carregar a lista completa do terminal.",
             )
             selected_timeframe = st.selectbox(
                 "Tempo grafico",
@@ -295,10 +296,11 @@ def render_market_data_tab(tab: Any, state: dict[str, Any]) -> dict[str, Any]:
                 )
 
             if load_clicked:
+                normalized_symbol = str(selected_symbol or "").strip().upper()
                 if not state["mt5_connected"]:
                     st.error("Conecte ao MT5 antes de carregar os dados.")
-                elif not available_symbols:
-                    st.error("Nenhum simbolo disponivel para consulta.")
+                elif not normalized_symbol:
+                    st.error("Informe um simbolo para carregar os dados.")
                 else:
                     effective_market_timeframe = resolve_market_timeframe(
                         selected_timeframe,
@@ -311,7 +313,7 @@ def render_market_data_tab(tab: Any, state: dict[str, Any]) -> dict[str, Any]:
                     else:
                         with st.spinner("Baixando candles do MT5..."):
                             market_result = load_market_data(
-                                selected_symbol,
+                                normalized_symbol,
                                 effective_market_timeframe,
                                 period_mode,
                                 custom_start_date,
@@ -329,7 +331,9 @@ def render_market_data_tab(tab: Any, state: dict[str, Any]) -> dict[str, Any]:
                             if market_data.empty:
                                 st.warning(market_result["error"] or "Nenhum dado retornado.")
                             else:
-                                st.success(f"{len(market_data)} candles carregados para {selected_symbol}.")
+                                st.success(f"{len(market_data)} candles carregados para {normalized_symbol}.")
+
+            selected_symbol = str(selected_symbol or "").strip().upper()
 
             if not market_data.empty:
                 loaded_period_mode = market_query["period_mode"] if market_query else period_mode

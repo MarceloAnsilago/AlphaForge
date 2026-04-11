@@ -102,13 +102,14 @@
           {% call acc.accordion_item("builder-connection", "builder-connection-main", "Conexao MT5", "builder-connection-main" in view_state.open_accordions) %}
             <div class="d-flex flex-wrap gap-2 mb-3">
               <button class="btn btn-outline-primary" type="button" hx-post="{{ url_for('builder.run_builder_action', action='connect_mt5') }}" hx-include="#builder-form" hx-target="#builder-workspace" hx-swap="outerHTML" hx-indicator="#builder-loading">Conectar ao MT5</button>
-              <button class="btn btn-outline-secondary" type="button" hx-post="{{ url_for('builder.run_builder_action', action='load_symbols') }}" hx-include="#builder-form" hx-target="#builder-workspace" hx-swap="outerHTML" hx-indicator="#builder-loading">Carregar simbolos</button>
+              <button class="btn btn-outline-secondary" type="button" hx-post="{{ url_for('builder.run_builder_action', action='load_symbols') }}" hx-include="#builder-form" hx-target="#builder-workspace" hx-swap="outerHTML" hx-indicator="#builder-loading">Carregar simbolos (opcional)</button>
             </div>
             <div class="row g-3">
               <div class="col-lg-4">{{ metric.metric("Conexao", "Ativa" if state.mt5_connected else "Inativa", state.mt5_status or "Aguardando") }}</div>
               <div class="col-lg-4">{{ metric.metric("Simbolos", state.symbols|length, state.symbols_status or "Lista local") }}</div>
               <div class="col-lg-4">{{ metric.metric("Status", "Online" if state.mt5_connected else "Offline", state.mt5_status or state.symbols_status or "Sem eventos") }}</div>
             </div>
+            <div class="form-text mt-3">A lista completa de simbolos nao e mais carregada automaticamente. Digite o ativo direto na aba 2; o cache de simbolos ficou opcional.</div>
           {% endcall %}
         {% endcall %}
       </section>
@@ -119,13 +120,15 @@
             <div class="row g-3">
               <div class="col-lg-3">
                 <label class="form-label">Simbolo</label>
-                <select class="form-select" name="selected_symbol">
-                  {% if ui_options.symbols %}
-                    {{ forms.option_list(ui_options.symbols, ui_options.selected_symbol) }}
-                  {% else %}
-                    <option value="">Sem simbolos disponiveis</option>
-                  {% endif %}
-                </select>
+                <input class="form-control" name="selected_symbol" value="{{ ui_options.selected_symbol }}" placeholder="Ex.: EURUSD" list="builder-symbol-suggestions" autocomplete="off">
+                {% if ui_options.symbols %}
+                  <datalist id="builder-symbol-suggestions">
+                    {% for symbol in ui_options.symbols %}
+                      <option value="{{ symbol }}"></option>
+                    {% endfor %}
+                  </datalist>
+                {% endif %}
+                <div class="form-text">Informe o ativo manualmente. Se quiser, carregue a lista completa apenas para sugestoes.</div>
               </div>
               <div class="col-lg-3">
                 <label class="form-label">Tempo grafico</label>

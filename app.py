@@ -219,7 +219,7 @@ def render_builder_page(state: dict[str, Any], backend: UiBackendContext) -> Non
             strategy_name=operation_config["strategy_name"],
             direction=operation_config["direction"],
             settings=settings,
-            symbol=market_config["selected_symbol"] if state["symbols"] else None,
+            symbol=market_config["selected_symbol"] or None,
             timeframe=market_config["selected_timeframe"],
             period_mode=market_config["period_mode"],
             custom_start_date=market_config["custom_start_date"],

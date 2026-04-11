@@ -499,10 +499,14 @@ def _handle_mt5_connection(state: dict[str, Any]) -> list[dict[str, str]]:
     state["mt5_connected"] = connection_result["connected"]
     state["mt5_status"] = connection_result["status"]
     if connection_result["connected"]:
-        symbols_result = load_terminal_symbols()
-        state["symbols"] = symbols_result["symbols"]
-        state["symbols_status"] = symbols_result["status"]
-        return [{"category": "success", "text": connection_result["status"]}]
+        state["symbols"] = []
+        state["symbols_status"] = ""
+        return [
+            {
+                "category": "success",
+                "text": f"{connection_result['status']} Digite o simbolo na aba 2 para consultar o ativo desejado.",
+            }
+        ]
     state["symbols"] = []
     state["symbols_status"] = ""
     return [{"category": "danger", "text": connection_result["status"]}]
@@ -526,8 +530,10 @@ def _handle_market_data_load(state: dict[str, Any], form_values: dict[str, Any])
     if not state["mt5_connected"]:
         return [{"category": "danger", "text": "Conecte ao MT5 antes de carregar os dados."}]
 
-    if not state["symbols"]:
-        return [{"category": "danger", "text": "Nenhum simbolo disponivel para consulta."}]
+    selected_symbol = _normalize_symbol(form_values.get("selected_symbol"))
+    form_values["selected_symbol"] = selected_symbol
+    if not selected_symbol:
+        return [{"category": "danger", "text": "Informe um simbolo para carregar os dados."}]
 
     effective_market_timeframe = resolve_market_timeframe(
         str(form_values["selected_timeframe"]),
@@ -542,7 +548,7 @@ def _handle_market_data_load(state: dict[str, Any], form_values: dict[str, Any])
         ]
 
     market_result = load_market_data(
-        str(form_values["selected_symbol"]),
+        selected_symbol,
         effective_market_timeframe,
         str(form_values["period_mode"]),
         _parse_date(form_values.get("custom_start_date")),
@@ -557,7 +563,7 @@ def _handle_market_data_load(state: dict[str, Any], form_values: dict[str, Any])
     state["builder_dirty"] = bool(state.get("builder_payload"))
     if state["market_data"].empty:
         return [{"category": "warning", "text": market_result["error"] or "Nenhum dado retornado."}]
-    return [{"category": "success", "text": f"{len(state['market_data'])} candles carregados."}]
+    return [{"category": "success", "text": f"{len(state['market_data'])} candles carregados para {selected_symbol}."}]
 
 
 def _handle_builder_actions(
@@ -651,6 +657,8 @@ def _handle_builder_actions(
 
 
 def _build_builder_payload(form_values: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    selected_symbol = _normalize_symbol(form_values.get("selected_symbol"))
+    form_values["selected_symbol"] = selected_symbol
     operation_config = {
         "strategy_name": str(form_values["strategy_name"]),
         "desired_market": str(form_values["desired_market"]),
@@ -751,7 +759,7 @@ def _build_builder_payload(form_values: dict[str, Any]) -> tuple[dict[str, Any],
         strategy_name=operation_config["strategy_name"],
         direction=operation_config["direction"],
         settings=settings,
-        symbol=str(form_values["selected_symbol"]) or None,
+        symbol=selected_symbol or None,
         timeframe=str(form_values["selected_timeframe"]),
         period_mode=str(form_values["period_mode"]),
         custom_start_date=_parse_date(form_values.get("custom_start_date")),
@@ -912,6 +920,10 @@ def _simple_indicator_parameters(indicator_name: str, period: int) -> dict[str, 
     return {"period": period}
 
 
+def _normalize_symbol(value: Any) -> str:
+    return str(value or "").strip().upper()
+
+
 def _build_builder_ui_options(form_values: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
     signal_output_options: dict[int, list[str]] = {}
     current_signal_outputs: dict[int, str] = {}
@@ -942,10 +954,8 @@ def _build_builder_ui_options(form_values: dict[str, Any], state: dict[str, Any]
             }
         )
 
-    selected_symbol = str(form_values.get("selected_symbol") or "")
-    if not selected_symbol and state.get("symbols"):
-        selected_symbol = str(state["symbols"][0])
-        form_values["selected_symbol"] = selected_symbol
+    selected_symbol = _normalize_symbol(form_values.get("selected_symbol"))
+    form_values["selected_symbol"] = selected_symbol
 
     return {
         "yes_no_options": YES_NO_OPTIONS,

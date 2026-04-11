@@ -3,6 +3,7 @@ flask
 pywebview
 pytest
 streamlit
+streamlit-option-menu
 pandas
 numpy
 MetaTrader5
