@@ -48,12 +48,33 @@ def apply_page_style() -> None:
     st.markdown(
         """
         <style>
+            #MainMenu,
+            header[data-testid="stHeader"],
+            [data-testid="stToolbar"],
+            [data-testid="stDecoration"],
+            [data-testid="stStatusWidget"],
+            [data-testid="stHeaderActionElements"] {
+                display: none !important;
+                visibility: hidden !important;
+            }
+
+            html, body {
+                font-family: "Segoe UI", sans-serif;
+            }
+
+            h1, [data-testid="stMarkdownContainer"] h1 {
+                font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+                font-weight: 700;
+                letter-spacing: -0.03em;
+                color: #1a2844;
+            }
+
             .block-container {
                 max-width: 1600px;
                 margin: 0 auto;
                 padding-left: 0.85rem;
                 padding-right: 0.85rem;
-                padding-top: 2rem;
+                padding-top: 1rem;
                 padding-bottom: 3rem;
             }
 

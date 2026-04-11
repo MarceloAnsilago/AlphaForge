@@ -12,6 +12,7 @@ from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent
 APP_PATH = ROOT_DIR / "app.py"
+ICON_PATH = ROOT_DIR / "assets" / "alphaforge_icon.ico"
 STARTUP_TIMEOUT_SECONDS = 30
 
 
@@ -59,6 +60,28 @@ def _stop_process(process: subprocess.Popen[bytes] | None) -> None:
         process.wait(timeout=5)
 
 
+def _apply_window_icon(window: object) -> None:
+    if not ICON_PATH.exists():
+        return
+
+    try:
+        import clr
+
+        clr.AddReference("System.Drawing")
+        from System.Drawing import Icon
+    except Exception:
+        return
+
+    native_window = getattr(window, "native", None)
+    if native_window is None:
+        return
+
+    try:
+        native_window.Icon = Icon(str(ICON_PATH))
+    except Exception:
+        return
+
+
 def main() -> None:
     try:
         import webview
@@ -77,14 +100,15 @@ def main() -> None:
 
     try:
         _wait_for_streamlit(url, STARTUP_TIMEOUT_SECONDS)
-        webview.create_window(
+        window = webview.create_window(
             "AlphaForge",
             url,
             width=1440,
             height=960,
             min_size=(1100, 760),
         )
-        webview.start()
+        window.events.shown += _apply_window_icon
+        webview.start(private_mode=True)
     finally:
         _stop_process(process)
 
