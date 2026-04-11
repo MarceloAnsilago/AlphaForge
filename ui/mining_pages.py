@@ -34,13 +34,11 @@ def render_mining_pages_style() -> None:
                 padding-right: 0.9rem;
             }
 
-            .sidebar-nav-shell {
+            [data-testid="stSidebar"] [data-testid="stVerticalBlockBorderWrapper"] {
                 background: #ffffff;
                 border: 1px solid rgba(226, 232, 240, 0.95);
                 border-radius: 16px;
                 box-shadow: 0 18px 32px -28px rgba(15, 23, 42, 0.22);
-                padding: 1rem 0.65rem 1rem 0.65rem;
-                margin-bottom: 1rem;
             }
 
             .sidebar-nav-title {
@@ -60,43 +58,32 @@ def render_mining_pages_style() -> None:
                 font-size: 1rem;
             }
 
-            [data-testid="stSidebar"] [data-testid="stRadio"] label {
-                display: none;
+            [data-testid="stSidebar"] .stButton {
+                margin-bottom: 0.16rem;
             }
 
-            [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] {
-                gap: 0.16rem;
-            }
-
-            [data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"] {
-                margin: 0 !important;
+            [data-testid="stSidebar"] .stButton > button {
+                justify-content: flex-start;
                 border-radius: 8px;
-                padding: 0.68rem 0.95rem !important;
-                background: transparent;
-                transition: background-color 0.15s ease, color 0.15s ease;
+                padding: 0.68rem 0.95rem;
+                font-size: 0.9rem;
+                font-weight: 500;
+                line-height: 1.2;
+                border: 0;
+                box-shadow: none;
             }
 
-            [data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"]:hover {
+            [data-testid="stSidebar"] .stButton > button[kind="secondary"] {
+                background: transparent;
+                color: #182640;
+            }
+
+            [data-testid="stSidebar"] .stButton > button[kind="secondary"]:hover {
                 background: #f8fafc;
             }
 
-            [data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"] > div:first-child {
-                display: none;
-            }
-
-            [data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"] p {
-                font-size: 0.9rem;
-                font-weight: 500;
-                color: #182640;
-                line-height: 1.2;
-                margin: 0;
-            }
-
-            [data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) {
+            [data-testid="stSidebar"] .stButton > button[kind="primary"] {
                 background: #ff4b4b;
-            }
-
-            [data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) p {
                 color: #ffffff;
                 font-weight: 700;
             }
@@ -188,18 +175,18 @@ def render_sidebar_navigation(state: dict[str, Any]) -> str:
         current_page = "Builder"
 
     with st.sidebar:
-        st.markdown("<div class='sidebar-nav-shell'>", unsafe_allow_html=True)
-        st.markdown("<div class='sidebar-nav-title'>Navegacao</div>", unsafe_allow_html=True)
-        selected_label = st.radio(
-            "Navegacao",
-            options=[page_labels[page] for page in pages],
-            index=pages.index(current_page),
-            label_visibility="collapsed",
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    reverse_labels = {label: page for page, label in page_labels.items()}
-    selected_page = reverse_labels[selected_label]
+        nav_container = st.container(border=True)
+        with nav_container:
+            st.markdown("<div class='sidebar-nav-title'>Navegacao</div>", unsafe_allow_html=True)
+            selected_page = current_page
+            for page in pages:
+                if st.button(
+                    page_labels[page],
+                    key=f"sidebar-nav-{page}",
+                    use_container_width=True,
+                    type="primary" if page == current_page else "secondary",
+                ):
+                    selected_page = page
 
     state["ui_page"] = selected_page
     return selected_page
