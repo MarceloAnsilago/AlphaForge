@@ -2,6 +2,7 @@ altair
 pytest
 streamlit
 streamlit-option-menu
+pywebview
 pandas
 numpy
 MetaTrader5
