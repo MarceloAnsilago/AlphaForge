@@ -236,7 +236,7 @@ def render_connection_tab(tab: Any, state: dict[str, Any]) -> None:
         with st.expander("Conexao MT5", expanded=False):
             connect_col, load_symbols_col = st.columns(2)
 
-            if connect_col.button("Conectar ao MT5", use_container_width=True):
+            if connect_col.button("🔌 Conectar ao MT5", use_container_width=True):
                 connection_result = connect_terminal()
                 state["mt5_connected"] = connection_result["connected"]
                 state["mt5_status"] = connection_result["status"]
@@ -248,7 +248,7 @@ def render_connection_tab(tab: Any, state: dict[str, Any]) -> None:
                     state["symbols_status"] = ""
 
             if load_symbols_col.button(
-                "Carregar simbolos (opcional)",
+                "🧾 Carregar simbolos",
                 use_container_width=True,
                 disabled=not state["mt5_connected"],
             ):
@@ -302,7 +302,7 @@ def render_market_data_tab(tab: Any, state: dict[str, Any]) -> dict[str, Any]:
                 options=MARKET_PERIOD_OPTIONS,
                 format_func=lambda value: PERIOD_LABELS[value],
             )
-            load_clicked = st.button("Carregar dados", use_container_width=True)
+            load_clicked = st.button("⬇️ Carregar dados", use_container_width=True)
 
             custom_start_date: date | None = None
             custom_end_date: date | None = None
@@ -371,7 +371,7 @@ def render_market_data_tab(tab: Any, state: dict[str, Any]) -> dict[str, Any]:
                 )
                 st.dataframe(market_data, use_container_width=True)
 
-                chart_button_label = "Ocultar grafico" if show_market_chart else "Exibir grafico"
+                chart_button_label = "🙈 Ocultar grafico" if show_market_chart else "📈 Exibir grafico"
                 if st.button(chart_button_label, key="toggle_market_chart", use_container_width=True):
                     state["show_market_chart"] = not show_market_chart
                     show_market_chart = state["show_market_chart"]

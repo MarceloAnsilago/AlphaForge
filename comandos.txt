@@ -18,6 +18,9 @@ streamlit run app.py
 Abrir a interface desktop:
 python desktop_app.py
 
+Abrir a interface desktop por atalho/launcher:
+.\AlphaForge Desktop.bat
+
 Rodar os testes:
 pytest -q
 

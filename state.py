@@ -22,6 +22,11 @@ def _build_default_state() -> dict[str, Any]:
         "market_query": None,
         "show_market_chart": False,
         "saved_strategy": None,
+        "builder_last_payload": None,
+        "builder_last_backtest": None,
+        "builder_attempts": [],
+        "builder_attempt_counter": 0,
+        "builder_selected_attempt_id": None,
     }
 
 
